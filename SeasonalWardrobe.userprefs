@@ -1,0 +1,12 @@
+﻿<Properties StartupItem="SeasonalWardrobe\SeasonalWardrobe.csproj">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Release" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="SeasonalWardrobe\Building_SeasonalWardrobe.cs">
+    <Files>
+      <File FileName="SeasonalWardrobe\Building_SeasonalWardrobe.cs" Line="16" Column="16" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
