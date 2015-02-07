@@ -98,7 +98,6 @@ namespace SeasonalWardrobe
 
 			// Build list of allowed apparel defs
 			ProvisionAllowedLists ();
-			GenDate.Days
 		}
 
 
