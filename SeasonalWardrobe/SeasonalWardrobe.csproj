@@ -48,7 +48,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Building_SeasonalWardrobe.cs" />
+    <Compile Include="Building_SeasonalWardrobe.cs">
+      <DeployService-Deploy>True</DeployService-Deploy>
+    </Compile>
+    <Compile Include="JobDriver_WearClothes.cs" />
+    <Compile Include="Dialog_AssignWardrobeOwner.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

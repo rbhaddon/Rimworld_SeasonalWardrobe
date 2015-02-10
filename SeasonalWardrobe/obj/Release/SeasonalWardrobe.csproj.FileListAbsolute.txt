@@ -2,8 +2,7 @@ C:\Users\robh\Documents\Projects\SeasonalWardrobe\SeasonalWardrobe\bin\Release\S
 C:\Users\robh\Documents\Projects\SeasonalWardrobe\SeasonalWardrobe\bin\Release\SeasonalWardrobe.pdb
 C:\Users\robh\Documents\Projects\SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.dll
 C:\Users\robh\Documents\Projects\SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.pdb
-C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.csprojResolveAssemblyReference.cache
-C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.dll
 C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\bin\Release\SeasonalWardrobe.dll
 C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\bin\Release\SeasonalWardrobe.pdb
+C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.dll
 C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.pdb

@@ -21,29 +21,45 @@ using RimWorld.SquadAI;  // RimWorld specific functions for squad brains
 
 namespace SeasonalWardrobe
 {
-	public class Building_Wardrobe : Building_Storage
+	public class Building_SeasonalWardrobe : Building_Storage
 	{
+		const int COLD_SEASON = 0;
+		const int WARM_SEASON = 1;
+
 		// Owner is of this wardrobe is colonist who will receive the wear apparel jobs
 		public Pawn owner = null;
+
+		public bool ColdSeason = false;
+		public int LastSeason = COLD_SEASON;
+		public bool WearingWarmClothes = false;
 
 		// The two items we can hold
 		public Thing storedHat = null;
 		public Thing storedWrap = null;
 
-		// List of allowed Torso-Shells and Hats
-		private static List<ThingDef> allowedTorsoShells = new List<ThingDef> ();
-		private static List<ThingDef> allowedHats = new List<ThingDef> ();
+		// Lists of apparel to wear during cold seasons
+		private static List<ThingDef> coldSeasonWraps = new List<ThingDef> ();
+		private static List<ThingDef> coldSeasonHats = new List<ThingDef> ();
+		private static List<ThingDef> coldSeasonAll = new List<ThingDef> ();
+
+		// Lists of apparel to wear during cold seasons
+		private static List<ThingDef> warmSeasonWraps = new List<ThingDef> ();
+		private static List<ThingDef> warmSeasonHats = new List<ThingDef> ();
+		private static List<ThingDef> warmSeasonAll = new List<ThingDef> ();
 
 		// These records enable us to split our allowances into the above lists
 		private static BodyPartRecord torsoParts = new BodyPartRecord ();
 		private static BodyPartRecord headParts = new BodyPartRecord();
+
+		// JobDefs
+		private static String JobDef_wearClothes = "WearClothesInWardrobe";
 
 		// Textures
 		public Texture2D assignOwnerIcon;
 		public Texture2D assignRoomOwnerIcon;
 
 		// Debug stuff
-		public int dayTicks = 1000;
+		public int dayTicks = 10000;
 		public int counter = 0;
 
 		//
@@ -51,7 +67,7 @@ namespace SeasonalWardrobe
 		//
 		public Pawn CurOccupant {
 			get {
-				List<Thing> list = Find.ThingGrid.ThingsListAt (base.Position);
+				List<Thing> list = Find.ThingGrid.ThingsListAt (Position);
 				for (int i = 0; i < list.Count; i++) {
 					Pawn pawn = list [i] as Pawn;
 					if (pawn != null) {
@@ -65,15 +81,59 @@ namespace SeasonalWardrobe
 				return null;
 			}
 		}
+			
+//		public Thing storedHat
+//		{
+//			get {
+//				IEnumerable<IntVec3> myCells = this.AllSlotCells ();
+//				foreach (IntVec3 cell in myCells)
+//				{
+//					IEnumerable<Thing> things = Find.ListerThings.AllThings.Where (t => t.Position == cell);
+//					foreach (Thing t in things)
+//					{
+//						if (t.def.IsApparel)
+//						{
+//							if (t.def.apparel.CoversBodyPart (headParts))
+//							{
+//								return t;
+//							}
+//						}
+//					}
+//				}
+//				return null;
+//			}
+//		}
+//
+//		public Thing storedWrap
+//		{
+//			get {
+//				IEnumerable<IntVec3> myCells = this.AllSlotCells ();
+//				foreach (IntVec3 cell in myCells)
+//				{
+//					IEnumerable<Thing> things = Find.ListerThings.AllThings.Where (t => t.Position == cell);
+//					foreach (Thing t in things)
+//					{
+//						if (t.def.IsApparel)
+//						{
+//							if (t.def.apparel.CoversBodyPart (torsoParts)) {
+//								return t;
+//							}
+//						}
+//					}
+//				}
+//				return null;
+//			}
+//		}
 
 
 		//
 		// Constructors
 		//
-		static Building_Wardrobe ()
+		static Building_SeasonalWardrobe ()
 		{
 			// Note: this type is marked as 'beforefieldinit'.
 			// Add definition to our BodyPartsRecords so we can distinguish between parkas and tuques, for instance
+
 			torsoParts.groups.Add (BodyPartGroupDefOf.Torso);
 			headParts.groups.Add (BodyPartGroupDefOf.UpperHead);
 			headParts.groups.Add (BodyPartGroupDefOf.FullHead);
@@ -97,32 +157,34 @@ namespace SeasonalWardrobe
 			AssignRoomOwner ();
 
 			// Build list of allowed apparel defs
-			ProvisionAllowedLists ();
+			CreateApparelLists ();
+
+			// Set what is allowed to be stored here
+			ChangeAllowances ();
 		}
 
 
 		public override void DeSpawn ()
 		{
-			if (this.owner != null) {
-				this.owner.ownership.UnclaimBed ();
-			}
-			Room room = base.Position.GetRoom ();
+			owner = null;
+			WearingWarmClothes = false;
+			storedHat.SetForbidden (false);
+			storedWrap.SetForbidden (false);
+			storedHat = null;
+			storedWrap = null;
 			base.DeSpawn ();
-			if (room != null) {
-				room.RoomChanged ();
-			}
 		}
 
 
 		public override void DrawGUIOverlay ()
 		{
 			if (Find.CameraMap.CurrentZoom == CameraZoomRange.Closest) {
-				if (this.owner != null && this.owner.InBed () && this.owner.CurrentBed ().owner == this.owner) {
+				if (owner != null && owner.InBed () && owner.CurrentBed ().owner == owner) {
 					return;
 				}
 				string text;
-				if (this.owner != null) {
-					text = this.owner.Nickname;
+				if (owner != null) {
+					text = owner.Nickname;
 				}
 				else {
 					text = "Unowned".Translate ();
@@ -139,18 +201,18 @@ namespace SeasonalWardrobe
 
 			stringBuilder.AppendLine ();
 			stringBuilder.Append ("Owner".Translate () + ": ");
-			if (this.owner == null) {
+			if (owner == null) {
 				stringBuilder.Append ("Nobody".Translate ());
 			}
 			else {
-				stringBuilder.Append (this.owner.LabelCap);
+				stringBuilder.Append (owner.LabelCap);
 			}
-			if (this.HaveHat ())
+			if (HaveHat ())
 			{
 				stringBuilder.AppendLine ();
 				stringBuilder.Append ("\tHat: " + storedHat.Label);
 			}
-			if (this.HaveWrap ())
+			if (HaveWrap ())
 			{
 				stringBuilder.AppendLine ();
 				stringBuilder.Append ("\tTorso: " + storedWrap.Label);
@@ -207,53 +269,66 @@ namespace SeasonalWardrobe
 			return (resultButtonList);
 		}
 
-
+		/// <summary>
+		/// Notifies the received thing.
+		/// </summary>
+		/// <param name="newItem">New item.</param>
 		public override void Notify_ReceivedThing(Thing newItem)
 		{
-			Log.Message (newItem.Label + " was added to wardrobe");
-			Log.Message ("Allowd to accept: " + this.settings.AllowedToAccept (newItem));
+			WearingWarmClothes = false;
 
-			if (allowedTorsoShells.Contains(newItem.def))
+			Log.Message (string.Format ("Received in wardrobe: {0}", newItem.Label));
+
+			if (newItem.def.apparel.CoversBodyPart (torsoParts))
 			{
-				// Save the item
 				storedWrap = newItem;
-			}
-
-			if (allowedHats.Contains (newItem.def))
+			} else if (newItem.def.apparel.CoversBodyPart (headParts))
 			{
 				storedHat = newItem;
+			} else 
+			{
+				Log.Error (string.Format ("Invalid item stored in wardrobe: {0}", newItem.Label));
 			}
-				
 			newItem.SetForbidden (true);
-
-			settings.allowances.DisallowAll ();
-//			settings.allowances.thingDefs.Clear ();
-			if (!HaveHat())
-			{
-				Log.Message ("Allowing hats");
-//				settings.allowances.thingDefs.AddAllInList (allowedHats);
-				foreach (ThingDef hat in allowedHats)
-					settings.allowances.SetAllow (hat, true);
-			}
-
-			if (!HaveWrap ())
-			{
-				Log.Message ("Allowing wraps");
-//				settings.allowances.thingDefs.AddAllInList (allowedTorsoShells);
-				foreach (ThingDef torsoShell in allowedTorsoShells)
-					settings.allowances.SetAllow (torsoShell, true);
-			}
+			ChangeAllowances ();
 		}
 
-
-		public override void Notify_LostThing(Thing lostItem)
+		/// <summary>
+		/// Called when a Thing has been removed from storage
+		/// I don't know how to queue jobs without them stepping on each other, so this is a work-around.
+		/// If owner grabs a coat, then grab a hat also, and vice-versa.
+		/// </summary>
+		/// <param name="newItem">Lost item.</param>
+		public override void Notify_LostThing(Thing newItem)
 		{
-			Log.Message (lostItem.Label + " was taken from wardrobe");
+			Log.Message (String.Format("Removed from wardrobe: {0}", newItem.Label));
+//			if (coldSeasonWraps.Contains (newItem.def) || warmSeasonWraps.Contains (newItem.def))
+//			{
+//				storedWrap = null;
+//				if (HaveHat ())
+//					IssueWearJob (owner, storedHat);
+//			} else if (coldSeasonHats.Contains (newItem.def) || warmSeasonHats.Contains (newItem.def))
+//			{
+//  				storedHat = null;
+//				if (HaveWrap ())
+//					IssueWearJob (owner, storedWrap);
+//			}
+
+			//owner.jobs.StopAll ();
 
 
-
+			if (newItem.def.apparel.CoversBodyPart (torsoParts))
+			{
+				storedWrap = null;
+			} else if (newItem.def.apparel.CoversBodyPart (headParts))
+			{
+				storedHat = null;
+			} else 
+			{
+				Log.Error (string.Format ("Invalid item removed from wardrobe: {0}", newItem.Label));
+			}
+			ChangeAllowances ();
 		}
-
 
 
 		// ===================== Ticker =====================
@@ -279,71 +354,115 @@ namespace SeasonalWardrobe
 		/// Remove the AllSlotCells iteration.  Instead, use HaveHat() and HaveWrap() to directly wear items
 		/// Tell owner to wear wrap.  Add to LostItem() that if Wrap is lost and HaveHat() then put on hat as well
 		/// Keep wardrobe disallowed until spring time, tell colonists to put their shit away.
+		/// When seasons change, items left in wardrobes from past season that were never worn need to be unforbidden.
 		/// </summary>
 		/// <param name="tickerAmount">Ticker amount.</param>
 		private void DoTickerWork (int tickerAmount)
 		{
+			if (owner == null)
+				return;
+
+			//Season currentSeason = GenDate.CurrentSeason;
+			//int dayOfMonth = GenDate.DayOfMonth;
+			//if (dayOfMonth % 2 == 0) {
+			//Log.Message("Odd Day");
+
 			counter += tickerAmount;
 			// do this once a day only
-			if (counter % dayTicks == 0) {
+			if (counter % dayTicks == 0)
+			{
 				// reset counter
 				counter = 0;
 
-				if (owner == null)
-					return;
+				// Flip-flop the seasons
+				ColdSeason = !ColdSeason;
 
-				//Season currentSeason = GenDate.CurrentSeason;
-				int dayOfMonth = GenDate.DayOfMonth;
-				//if (dayOfMonth % 2 == 0) {
-				//Log.Message("Odd Day");
+				Log.Error (string.Format ("Season is cold: {0}", ColdSeason));
 
-				IEnumerable<IntVec3> spots = this.AllSlotCells ();
-				foreach (IntVec3 spot in spots)
+				if (ColdSeason) // && !WearingWarmClothes)
 				{
-//					IEnumerable<Thing> things = Find.ListerThings.AllThings.Where (t => t.Position == this.Position);
-					IEnumerable<Thing> things = Find.ListerThings.AllThings.Where (t => t.Position == spot);
-					//Thing thing = null;
-					foreach (Thing t in things)
+					if (LastSeason != COLD_SEASON)
 					{
-						Log.Message ("Processing " + t.Label);
-//						if (t.def.category == EntityCategory.Item && t != this) {
-//						if (t.def == ThingDef.Named ("Apparel_Parka") || t.def == ThingDef.Named("Apparel_Tuque"))
-						if (allowedTorsoShells.Contains(t.def) || allowedHats.Contains(t.def)) 
-						{
-							foreach (Apparel apparel in owner.apparel.WornApparel)
-							{
-								if (apparel.def == ThingDef.Named ("Apparel_Jacket"))
-								{
-									Log.Message (owner.Nickname + " is wearing a jacket.");
-								}
-							}
-							owner.jobs.StopAll ();
-							owner.jobs.StartJob (new Job (JobDefOf.Wear, (Apparel)t));
-//							owner.apparel.Wear ((Apparel)t);  //this method just makes it happen instantly
-							break;
-						} else
-						{
-							Log.Message ("Skipping " + t.Label);
+						// Seasons have changed, so update allowances
+						UnforbidClothing ();
+						ChangeAllowances ();
+						LastSeason = COLD_SEASON;
+					}
+					if (HaveWrap ())
+					{
+						Log.Message (string.Format ("Issuing wear job for {0}", storedWrap.Label));
+						IssueWearJob (owner, storedWrap);
+					} else if (HaveHat ())
+					{
+						Log.Message (string.Format ("Issuing wear job for {0}", storedHat.Label));
+						IssueWearJob (owner, storedHat);
+					}
+				}
+				if (!ColdSeason) // && WearingWarmClothes)
+				{
+					if (LastSeason != WARM_SEASON)
+					{
+						// Seasons have changed, so update allowances
+						UnforbidClothing ();
+						ChangeAllowances ();
+						LastSeason = WARM_SEASON;
+					}
+					foreach (Apparel apparel in owner.apparel.WornApparel)
+					{
+						if (coldSeasonAll.Contains (apparel.def))
+						{	
+							// Pawn is wearing our stuff
+							Log.Message (owner.Nickname + " is wearing " + apparel.Label);
 						}
 					}
+						
+					// Put worn warm clothing into wardrobe
+					// TODO
+
+					// Reset allowances so pawns don't remove clothing until Fall/Winter
+//					foreach (ThingDef article in coldSeasonAll)
+//						settings.allowances.SetAllow (article, true);
 				}
 			}
 		}
 
 		// ======================== Private Methods ================
 
-		private void AssignRoomOwner()
+		/// <summary>
+		/// Determines if issue wear job the specified pawn article.
+		/// </summary>
+		/// <returns><c>true</c> if issue wear job the specified pawn article; otherwise, <c>false</c>.</returns>
+		/// <param name="pawn">Pawn.</param>
+		/// <param name="article">Article.</param>
+		void IssueWearJob(Pawn pawn, Thing article)
+		{
+//			pawn.playerController.TakeOrderedJob (null);
+//			article.SetForbidden (false);
+//			//pawn.jobs.StopAll ();
+//			pawn.jobs.EndCurrentJob (JobCondition.ForcedInterrupt);
+//			pawn.jobs.StartJob (new Job (JobDefOf.Wear, (Apparel)article));
+
+//			Job jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_wearClothes), this);
+//			owner.jobs.StopAll ();
+//			owner.jobs.StartJob(jobWear);
+//			owner.playerController.TakeOrderedJob (jobWear);
+		}
+
+		/// <summary>
+		/// Assigns the room owner.
+		/// </summary>
+		void AssignRoomOwner()
 		{
 			// Assign the wardrobe
-			Room room = this.Position.GetRoomOrAdjacent();
+			Room room = Position.GetRoomOrAdjacent();
 			if (room != null)
 			{
 				Pawn roomOwner = room.RoomOwner;
 				// owner might be null, which is a valid owner
-				this.owner = roomOwner;
+				owner = roomOwner;
 			} else
 			{
-				this.owner = null;
+				owner = null;
 			}
 		}
 
@@ -351,7 +470,7 @@ namespace SeasonalWardrobe
 		/// Does the wardrobe hold a wrap (torso shell-layer apparel)?
 		/// </summary>
 		/// <returns><c>true</c>, if wrap was had, <c>false</c> otherwise.</returns>
-		private bool HaveWrap()
+		bool HaveWrap()
 		{
 			return (storedWrap != null);
 		}
@@ -361,30 +480,109 @@ namespace SeasonalWardrobe
 		/// Does the wardrobe hold a hat?
 		/// </summary>
 		/// <returns><c>true</c>, if hat was had, <c>false</c> otherwise.</returns>
-		private bool HaveHat()
+		bool HaveHat()
 		{
 			return (storedHat != null);
 		}
 
+		/// <summary>
+		/// Implements the state machine that determines what this wardrobe is allowed to store
+		/// When the season is cold, we store warm clothes and vice-versa.
+		/// When a hat has been added, we disallow additional hats and vice-versa with wraps.
+		/// </summary>
+		void ChangeAllowances()
+		{
+			var allowedDefList = new List<ThingDef> ();
+
+			if (ColdSeason)
+			{
+				// Autumn & Winter
+				if (!HaveHat ())
+					allowedDefList.AddRange (warmSeasonHats);
+				if (!HaveWrap())
+					allowedDefList.AddRange (warmSeasonWraps);
+			} else
+			{
+				// Spring & Summer
+				if (!HaveHat ())
+					allowedDefList.AddRange (coldSeasonHats);
+				if (!HaveWrap ())
+					allowedDefList.AddRange (coldSeasonWraps);
+			}
+
+			// Update allowances
+			settings.allowances.DisallowAll ();
+			foreach (var td in allowedDefList)
+			{
+				settings.allowances.SetAllow (td, true);
+			}
+		}
 
 		/// <summary>
-		/// Provisions the list of allowed apparel items into their respective lists
-		/// based on our storage settings allowances (defined in the ThingDef XML)
+		/// Unforbids the clothing if any is present.
+		/// This will be more pawn job efficient if clothing that fits the current storage rule is left forbidden
 		/// </summary>
-		private void ProvisionAllowedLists()
+		public void UnforbidClothing()
 		{
-			StorageSettings mySettings = this.GetStoreSettings ();
-			foreach (ThingDef thingDef in mySettings.allowances.thingDefs)
+			if (storedHat != null)
+				storedHat.SetForbidden(false);
+			if (storedWrap != null)
+				storedWrap.SetForbidden (false);
+		}
+
+		/// <summary>
+		/// Creates the apparel lists, separated into what to warm and cold season and head vs. torso categories
+ 		/// </summary>
+		void CreateApparelLists()
+		{
+//			// Cold Season apparel
+//			StorageSettings mySettings = GetStoreSettings ();
+//			foreach (ThingDef thingDef in mySettings.allowances.thingDefs)
+//			{
+//				coldSeasonAll.Add (thingDef);
+//				if (thingDef.apparel.CoversBodyPart (torsoParts))
+//				{
+//					coldSeasonWraps.Add (thingDef);
+//				} else if (thingDef.apparel.CoversBodyPart (headParts))
+//				{
+//					coldSeasonHats.Add (thingDef);
+//				} else
+//				{
+//					Log.Warning ("Storage allowance has non-torso/hat thing: " + thingDef.label);
+//				}
+//			}
+
+			IEnumerable<ThingDef> allThingDefs = DefDatabase<ThingDef>.AllDefs;
+			foreach (ThingDef thingDef in allThingDefs)
 			{
-				if (thingDef.apparel.CoversBodyPart (torsoParts))
+				if (thingDef.IsApparel)
 				{
-					allowedTorsoShells.Add (thingDef);
-				} else if (thingDef.apparel.CoversBodyPart (headParts))
-				{
-					allowedHats.Add (thingDef);
-				} else
-				{
-					Log.Warning ("Storage allowance has non-torso/hat thing: " + thingDef.label);
+					int comfyMaxTemp = (int)thingDef.equippedStatOffsets.GetStatOffsetFromList (StatDefOf.ComfyTemperatureMax);
+//					Log.Message(String.Format("{0} ComfyTempMax: {1}", thingDef.label, comfyMaxTemp));
+
+					if (comfyMaxTemp < 0)
+					{
+						// Cold Season clothing
+						coldSeasonAll.Add (thingDef);
+						if (thingDef.apparel.CoversBodyPart (headParts))
+						{
+							coldSeasonHats.Add (thingDef);
+						} else if (thingDef.apparel.CoversBodyPart (torsoParts))
+						{
+							coldSeasonWraps.Add (thingDef);
+						}
+					} else
+					{
+						// Warm Season clothing
+						warmSeasonAll.Add (thingDef);
+						if (thingDef.apparel.CoversBodyPart(headParts))
+						{
+							warmSeasonHats.Add (thingDef);
+						} else if (thingDef.apparel.CoversBodyPart(torsoParts))
+						{
+							warmSeasonWraps.Add(thingDef);
+						}
+					}
 				}
 			}
 		}
@@ -392,61 +590,10 @@ namespace SeasonalWardrobe
 		/// <summary>
 		/// Performs the assign wardrobe action when assignOwnerButton is clicked
 		/// </summary>
-		private void PerformAssignWardrobeAction()
+		void PerformAssignWardrobeAction()
 		{
 			//Dialog_AssignWardrobeOwner (this);
 			Log.Message ("Assign Owner Wardrobe");
 		}
 	} // class Building_Wardrobe
-
-
-	// ============================= Assign Owner Dialog ======================
-
-	// Broken assign owner dialog stuff here
-	public class Dialog_AssignWardrobeOwner : Layer
-	{
-		public Building_Wardrobe wardrobe;
-		public Vector2 scrollPosition;
-		//
-		// Constructors
-		//
-		public Dialog_AssignWardrobeOwner (Building_Wardrobe wardrobe)
-		{
-			this.wardrobe = wardrobe;
-			base.SetCentered (620, 500);
-			this.category = LayerCategory.GameDialog;
-			this.closeOnEscapeKey = true;
-			this.doCloseButton = true;
-			this.doCloseX = true;
-		}
-
-		//
-		// Methods
-		//
-		protected override void FillWindow (Rect inRect)
-		{
-			Text.Font = GameFont.Small;
-			Rect outRect = new Rect (inRect);
-			outRect.yMin += 20;
-			outRect.yMax -= 40;
-			Rect viewRect = new Rect (0, 0, inRect.width - 16, (float)Find.ListerPawns.FreeColonistsCount * 35 + 100);
-			this.scrollPosition = Widgets.BeginScrollView (outRect, this.scrollPosition, viewRect);
-			float num = 0;
-			foreach (Pawn current in Find.ListerPawns.FreeColonists) {
-				Rect rect = new Rect (0, num, (float)viewRect.width * (float)0.6, (float)32);
-				Widgets.Label (rect, current.LabelCap);
-				rect.x = rect.xMax;
-				rect.width = (float)(viewRect.width * 0.4);
-				if (Widgets.TextButton (rect, "WardrobeAssign".Translate ())) {
-					//current.ownership.UnclaimBed ();
-					//current.ownership.ClaimBed (this.wardrobe);
-					this.wardrobe.owner = current;
-					base.Close (true);
-					return;
-				}
-				num += 35;
-			}
-			Widgets.EndScrollView ();
-		}
-	} // class Dialog_AssignWardrobeOwner
 }
