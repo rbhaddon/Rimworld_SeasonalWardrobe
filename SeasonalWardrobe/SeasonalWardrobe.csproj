@@ -53,6 +53,7 @@
     </Compile>
     <Compile Include="JobDriver_WearClothes.cs" />
     <Compile Include="Dialog_AssignWardrobeOwner.cs" />
+    <Compile Include="Helper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -17,12 +18,17 @@ namespace SeasonalWardrobe
 	{
 		// Constants
 		private const TargetIndex WardrobeIdx = TargetIndex.A;
-		private const Thing storedHat = null;
-		private const Thing storedWrap = null;
-
+		private Thing storedHat = null;
+		private Thing storedWrap = null;
+		private Building_SeasonalWardrobe wardrobe;
 
 		public JobDriver_WearClothes(Pawn pawn) : base(pawn)
-		{ }
+		{
+			Log.Warning (String.Format ("TargetThingA is {0}", TargetThingA.Label));
+			wardrobe = (Building_SeasonalWardrobe)TargetThingA;
+			storedHat = wardrobe.storedHat;
+			storedWrap = wardrobe.storedWrap;
+		}
 
 		protected override IEnumerable<Toil> MakeNewToils()
 		{
@@ -32,6 +38,7 @@ namespace SeasonalWardrobe
 //			this.FailOn (() => storedWrap == null);
 
 			// Toil: Goto Wardrobe
+			Log.Message (String.Format ("{0} is going to wardrobe.", pawn));
 			Toil toilGoto = null;
 			toilGoto = Toils_Goto.GotoThing (WardrobeIdx, PathMode.ClosestTouch);
 			yield return toilGoto;
@@ -50,21 +57,14 @@ namespace SeasonalWardrobe
 		{
 			Toil toil = new Toil ();
 
-			Job wearClothing = new Job (JobDefOf.Wear, (Apparel)clothing);
-
 			toil.initAction = () => {
 				toil.actor.pather.StopDead ();
-				toil.actor.jobs.StartJob (wearClothing);
+				toil.actor.apparel.Wear((Apparel)clothing, true);
 			};
 
 			toil.defaultCompleteMode = ToilCompleteMode.Instant;
 
 			return toil;
 		}
-
-//		private bool HaveClothes(Thing hat, Thing wrap)
-//		{
-//			return (hat != null && wrap != null);
-//		}
 	}
 }

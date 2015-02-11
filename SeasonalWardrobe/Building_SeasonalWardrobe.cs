@@ -52,7 +52,7 @@ namespace SeasonalWardrobe
 		private static BodyPartRecord headParts = new BodyPartRecord();
 
 		// JobDefs
-		private static String JobDef_wearClothes = "WearClothesInWardrobe";
+		private const String JobDef_wearClothes = "WearClothesInWardrobe";
 
 		// Textures
 		public Texture2D assignOwnerIcon;
@@ -81,49 +81,17 @@ namespace SeasonalWardrobe
 				return null;
 			}
 		}
-			
-//		public Thing storedHat
-//		{
-//			get {
-//				IEnumerable<IntVec3> myCells = this.AllSlotCells ();
-//				foreach (IntVec3 cell in myCells)
-//				{
-//					IEnumerable<Thing> things = Find.ListerThings.AllThings.Where (t => t.Position == cell);
-//					foreach (Thing t in things)
-//					{
-//						if (t.def.IsApparel)
-//						{
-//							if (t.def.apparel.CoversBodyPart (headParts))
-//							{
-//								return t;
-//							}
-//						}
-//					}
-//				}
-//				return null;
-//			}
-//		}
-//
-//		public Thing storedWrap
-//		{
-//			get {
-//				IEnumerable<IntVec3> myCells = this.AllSlotCells ();
-//				foreach (IntVec3 cell in myCells)
-//				{
-//					IEnumerable<Thing> things = Find.ListerThings.AllThings.Where (t => t.Position == cell);
-//					foreach (Thing t in things)
-//					{
-//						if (t.def.IsApparel)
-//						{
-//							if (t.def.apparel.CoversBodyPart (torsoParts)) {
-//								return t;
-//							}
-//						}
-//					}
-//				}
-//				return null;
-//			}
-//		}
+
+		// Just testing ...
+		public Thing storedCat
+		{
+			get {
+				return this.storedHat;
+			}
+			set {
+				this.storedHat = value;
+			}
+		}
 
 
 		//
@@ -442,10 +410,10 @@ namespace SeasonalWardrobe
 //			pawn.jobs.EndCurrentJob (JobCondition.ForcedInterrupt);
 //			pawn.jobs.StartJob (new Job (JobDefOf.Wear, (Apparel)article));
 
-//			Job jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_wearClothes), this);
+			Job jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_wearClothes), this);
 //			owner.jobs.StopAll ();
 //			owner.jobs.StartJob(jobWear);
-//			owner.playerController.TakeOrderedJob (jobWear);
+			owner.playerController.TakeOrderedJob (jobWear);
 		}
 
 		/// <summary>
