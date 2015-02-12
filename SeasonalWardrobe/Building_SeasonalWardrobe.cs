@@ -10,14 +10,14 @@ using System.Text;
 // These are RimWorld-specific usings. Activate/Deactivate what you need:
 // ----------------------------------------------------------------------
 using UnityEngine;         // Always needed
-using VerseBase;         // Material/Graphics handling functions are found here
+//using VerseBase;         // Material/Graphics handling functions are found here
 using Verse;               // RimWorld universal objects are here (like 'Building')
 using Verse.AI;          // Needed when you do something with the AI
-using Verse.Sound;       // Needed when you do something with Sound
-using Verse.Noise;       // Needed when you do something with Noises
+//using Verse.Sound;       // Needed when you do something with Sound
+//using Verse.Noise;       // Needed when you do something with Noises
 using RimWorld;            // RimWorld specific functions are found here (like 'Building_Battery')
-using RimWorld.Planet;   // RimWorld specific functions for world creation
-using RimWorld.SquadAI;  // RimWorld specific functions for squad brains 
+//using RimWorld.Planet;   // RimWorld specific functions for world creation
+//using RimWorld.SquadAI;  // RimWorld specific functions for squad brains 
 
 namespace SeasonalWardrobe
 {
@@ -31,7 +31,6 @@ namespace SeasonalWardrobe
 
 		public bool ColdSeason = false;
 		public int LastSeason = COLD_SEASON;
-		public bool WearingWarmClothes = false;
 
 		// The two items we can hold
 		public Thing storedHat = null;
@@ -82,17 +81,6 @@ namespace SeasonalWardrobe
 			}
 		}
 
-		// Just testing ...
-		public Thing storedCat
-		{
-			get {
-				return this.storedHat;
-			}
-			set {
-				this.storedHat = value;
-			}
-		}
-
 
 		//
 		// Constructors
@@ -135,7 +123,6 @@ namespace SeasonalWardrobe
 		public override void DeSpawn ()
 		{
 			owner = null;
-			WearingWarmClothes = false;
 			storedHat.SetForbidden (false);
 			storedWrap.SetForbidden (false);
 			storedHat = null;
@@ -243,8 +230,6 @@ namespace SeasonalWardrobe
 		/// <param name="newItem">New item.</param>
 		public override void Notify_ReceivedThing(Thing newItem)
 		{
-			WearingWarmClothes = false;
-
 			Log.Message (string.Format ("Received in wardrobe: {0}", newItem.Label));
 
 			if (newItem.def.apparel.CoversBodyPart (torsoParts))
@@ -270,20 +255,6 @@ namespace SeasonalWardrobe
 		public override void Notify_LostThing(Thing newItem)
 		{
 			Log.Message (String.Format("Removed from wardrobe: {0}", newItem.Label));
-//			if (coldSeasonWraps.Contains (newItem.def) || warmSeasonWraps.Contains (newItem.def))
-//			{
-//				storedWrap = null;
-//				if (HaveHat ())
-//					IssueWearJob (owner, storedHat);
-//			} else if (coldSeasonHats.Contains (newItem.def) || warmSeasonHats.Contains (newItem.def))
-//			{
-//  				storedHat = null;
-//				if (HaveWrap ())
-//					IssueWearJob (owner, storedWrap);
-//			}
-
-			//owner.jobs.StopAll ();
-
 
 			if (newItem.def.apparel.CoversBodyPart (torsoParts))
 			{
@@ -344,10 +315,9 @@ namespace SeasonalWardrobe
 
 				// Flip-flop the seasons
 				ColdSeason = !ColdSeason;
-
 				Log.Error (string.Format ("Season is cold: {0}", ColdSeason));
 
-				if (ColdSeason) // && !WearingWarmClothes)
+				if (ColdSeason)
 				{
 					if (LastSeason != COLD_SEASON)
 					{
@@ -356,17 +326,13 @@ namespace SeasonalWardrobe
 						ChangeAllowances ();
 						LastSeason = COLD_SEASON;
 					}
-					if (HaveWrap ())
-					{
-						Log.Message (string.Format ("Issuing wear job for {0}", storedWrap.Label));
-						IssueWearJob (owner, storedWrap);
-					} else if (HaveHat ())
-					{
-						Log.Message (string.Format ("Issuing wear job for {0}", storedHat.Label));
-						IssueWearJob (owner, storedHat);
-					}
+					if (HaveWrap () || HaveHat())
+					{	
+						Log.Message (string.Format ("Issuing wear job for {0}", owner));
+						IssueWearJob ();
+					} 
 				}
-				if (!ColdSeason) // && WearingWarmClothes)
+				if (!ColdSeason)
 				{
 					if (LastSeason != WARM_SEASON)
 					{
@@ -383,13 +349,11 @@ namespace SeasonalWardrobe
 							Log.Message (owner.Nickname + " is wearing " + apparel.Label);
 						}
 					}
-						
-					// Put worn warm clothing into wardrobe
-					// TODO
-
-					// Reset allowances so pawns don't remove clothing until Fall/Winter
-//					foreach (ThingDef article in coldSeasonAll)
-//						settings.allowances.SetAllow (article, true);
+					if (HaveWrap () || HaveHat())
+					{	
+						Log.Message (string.Format ("Issuing wear job for {0}", owner));
+						IssueWearJob ();
+					}
 				}
 			}
 		}
@@ -400,19 +364,9 @@ namespace SeasonalWardrobe
 		/// Determines if issue wear job the specified pawn article.
 		/// </summary>
 		/// <returns><c>true</c> if issue wear job the specified pawn article; otherwise, <c>false</c>.</returns>
-		/// <param name="pawn">Pawn.</param>
-		/// <param name="article">Article.</param>
-		void IssueWearJob(Pawn pawn, Thing article)
+		void IssueWearJob()
 		{
-//			pawn.playerController.TakeOrderedJob (null);
-//			article.SetForbidden (false);
-//			//pawn.jobs.StopAll ();
-//			pawn.jobs.EndCurrentJob (JobCondition.ForcedInterrupt);
-//			pawn.jobs.StartJob (new Job (JobDefOf.Wear, (Apparel)article));
-
-			Job jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_wearClothes), this);
-//			owner.jobs.StopAll ();
-//			owner.jobs.StartJob(jobWear);
+			var jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_wearClothes), this);
 			owner.playerController.TakeOrderedJob (jobWear);
 		}
 
@@ -454,6 +408,24 @@ namespace SeasonalWardrobe
 		}
 
 		/// <summary>
+		/// Determines whether the given apparel item is appropriate to wear in the current season
+		/// </summary>
+		/// <returns><c>true</c> if this instance is correct season for apparel the specified apparelThing; otherwise, <c>false</c>.</returns>
+		/// <param name="apparelThing">Apparel thing.</param>
+		public bool IsCorrectSeasonForApparel(Thing apparelThing)
+		{
+			bool retval;
+			if (ColdSeason)
+			{
+				retval = coldSeasonAll.Contains (apparelThing.def);
+			} else
+			{
+				retval = warmSeasonAll.Contains(apparelThing.def);
+			}
+			return retval;
+		}
+
+		/// <summary>
 		/// Implements the state machine that determines what this wardrobe is allowed to store
 		/// When the season is cold, we store warm clothes and vice-versa.
 		/// When a hat has been added, we disallow additional hats and vice-versa with wraps.
@@ -492,10 +464,26 @@ namespace SeasonalWardrobe
 		/// </summary>
 		public void UnforbidClothing()
 		{
+			List<ThingDef> currentSeasonApparel;
+	
+			if (ColdSeason)
+			{
+				currentSeasonApparel = coldSeasonAll;
+			} else
+			{
+				currentSeasonApparel = warmSeasonAll;
+			}
+
 			if (storedHat != null)
-				storedHat.SetForbidden(false);
+			{
+				if (currentSeasonApparel.Contains(storedHat.def))
+					storedHat.SetForbidden (false);
+			}
 			if (storedWrap != null)
-				storedWrap.SetForbidden (false);
+			{
+				if (currentSeasonApparel.Contains(storedWrap.def))
+					storedWrap.SetForbidden (false);
+			}
 		}
 
 		/// <summary>
@@ -503,23 +491,6 @@ namespace SeasonalWardrobe
  		/// </summary>
 		void CreateApparelLists()
 		{
-//			// Cold Season apparel
-//			StorageSettings mySettings = GetStoreSettings ();
-//			foreach (ThingDef thingDef in mySettings.allowances.thingDefs)
-//			{
-//				coldSeasonAll.Add (thingDef);
-//				if (thingDef.apparel.CoversBodyPart (torsoParts))
-//				{
-//					coldSeasonWraps.Add (thingDef);
-//				} else if (thingDef.apparel.CoversBodyPart (headParts))
-//				{
-//					coldSeasonHats.Add (thingDef);
-//				} else
-//				{
-//					Log.Warning ("Storage allowance has non-torso/hat thing: " + thingDef.label);
-//				}
-//			}
-
 			IEnumerable<ThingDef> allThingDefs = DefDatabase<ThingDef>.AllDefs;
 			foreach (ThingDef thingDef in allThingDefs)
 			{

@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
 
-using UnityEngine;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -24,7 +20,6 @@ namespace SeasonalWardrobe
 
 		public JobDriver_WearClothes(Pawn pawn) : base(pawn)
 		{
-			Log.Warning (String.Format ("TargetThingA is {0}", TargetThingA.Label));
 			wardrobe = (Building_SeasonalWardrobe)TargetThingA;
 			storedHat = wardrobe.storedHat;
 			storedWrap = wardrobe.storedWrap;
@@ -32,25 +27,32 @@ namespace SeasonalWardrobe
 
 		protected override IEnumerable<Toil> MakeNewToils()
 		{
+			Log.Message (String.Format ("{0} received WearClothes job.", pawn));
+
 			// Set fail conditions
 			this.FailOnBurningImmobile (WardrobeIdx);
-//			this.FailOn (() => storedHat == null);
-//			this.FailOn (() => storedWrap == null);
 
 			// Toil: Goto Wardrobe
-			Log.Message (String.Format ("{0} is going to wardrobe.", pawn));
 			Toil toilGoto = null;
 			toilGoto = Toils_Goto.GotoThing (WardrobeIdx, PathMode.ClosestTouch);
 			yield return toilGoto;
 
-			// Toil: Wear wrap
-			if (storedWrap != null)
-				yield return Toils_WearThing (pawn, storedWrap);
+			// Toil: Wear clothes -- but only if they are correct for the current season
+			var clothes = new List<Thing>();
+			clothes.Add (storedHat);
+			clothes.Add (storedWrap);
 
-			// Toil: Wear hat
-			if (storedHat != null)
-				yield return Toils_WearThing (pawn, storedHat);
+			foreach (Thing clothing in clothes)
+			{
+				if (clothing != null) // TODO this check is probably redundant with the next check
+				{
+					if (wardrobe.IsCorrectSeasonForApparel(clothing))
+					{
+						yield return Toils_WearThing (pawn, clothing);
+					}
+				}
 
+			}
 		}
 
 		private Toil Toils_WearThing(Pawn owner, Thing clothing)
