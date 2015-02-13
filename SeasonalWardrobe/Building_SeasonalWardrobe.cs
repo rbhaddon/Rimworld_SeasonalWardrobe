@@ -61,24 +61,16 @@ namespace SeasonalWardrobe
 		public int dayTicks = 10000;
 		public int counter = 0;
 
-		//
-		// Properties -- TODO I don't think this is being used
-		//
-		public Pawn CurOccupant {
-			get {
-				List<Thing> list = Find.ThingGrid.ThingsListAt (Position);
-				for (int i = 0; i < list.Count; i++) {
-					Pawn pawn = list [i] as Pawn;
-					if (pawn != null) {
-						if (pawn.jobs.curJob != null) {
-							if (pawn.jobs.curJob.def == JobDefOf.LayDown && pawn.jobs.curJob.targetA.Thing == this) {
-								return pawn;
-							}
-						}
-					}
-				}
-				return null;
-			}
+
+		public override void ExposeData ()
+		{
+			base.ExposeData ();
+			Scribe_References.LookReference<Pawn> (ref this.owner, "owner");
+			Scribe_Values.LookValue<int> (ref LastSeason, "LastSeason");
+			Scribe_Values.LookValue<bool> (ref ColdSeason, "ColdSeason");
+			Scribe_References.LookReference<Thing> (ref this.storedHat, "storedHat");
+			Scribe_References.LookReference<Thing> (ref this.storedWrap, "storedWrap");
+
 		}
 
 
@@ -90,9 +82,7 @@ namespace SeasonalWardrobe
 			// Note: this type is marked as 'beforefieldinit'.
 			// Add definition to our BodyPartsRecords so we can distinguish between parkas and tuques, for instance
 
-			torsoParts.groups.Add (BodyPartGroupDefOf.Torso);
-			headParts.groups.Add (BodyPartGroupDefOf.UpperHead);
-			headParts.groups.Add (BodyPartGroupDefOf.FullHead);
+
 		}
 
 		//
@@ -105,17 +95,23 @@ namespace SeasonalWardrobe
 		/// </summary>
 		public override void SpawnSetup ()
 		{
+			Log.Message (String.Format("Current season is cold: {0}", ColdSeason));
 			base.SpawnSetup ();
 			assignOwnerIcon = ContentFinder<Texture2D>.Get("UI/Commands/AssignOwner");
 			assignRoomOwnerIcon = ContentFinder<Texture2D>.Get ("UI/Commands/AssignRoomOwner");
 
+			torsoParts.groups.Add (BodyPartGroupDefOf.Torso);
+			headParts.groups.Add (BodyPartGroupDefOf.UpperHead);
+			headParts.groups.Add (BodyPartGroupDefOf.FullHead);
+
 			// Assign this room's owner to the wardrobe
-			AssignRoomOwner ();
+			if (owner == null)
+				AssignRoomOwner ();
 
 			// Build list of allowed apparel defs
 			CreateApparelLists ();
 
-			// Set what is allowed to be stored here
+			// Set what is allowed to be stored herea
 			ChangeAllowances ();
 		}
 
@@ -176,14 +172,6 @@ namespace SeasonalWardrobe
 		}
 
 
-		public override void ExposeData ()
-		{
-			base.ExposeData ();
-			//Scribe_Values.LookValue<Pawn> (ref owner, "owner", null);
-			Scribe_References.LookReference<Pawn> (ref owner, "owner");
-		}
-
-
 		///<summary>
 		///This creates the command buttons to control the wardrobe
 		///</summary>
@@ -230,7 +218,7 @@ namespace SeasonalWardrobe
 		/// <param name="newItem">New item.</param>
 		public override void Notify_ReceivedThing(Thing newItem)
 		{
-			Log.Message (string.Format ("Received in wardrobe: {0}", newItem.Label));
+//			Log.Message (string.Format ("Received in wardrobe: {0}", newItem.Label));
 
 			if (newItem.def.apparel.CoversBodyPart (torsoParts))
 			{
@@ -254,7 +242,7 @@ namespace SeasonalWardrobe
 		/// <param name="newItem">Lost item.</param>
 		public override void Notify_LostThing(Thing newItem)
 		{
-			Log.Message (String.Format("Removed from wardrobe: {0}", newItem.Label));
+//			Log.Message (String.Format("Removed from wardrobe: {0}", newItem.Label));
 
 			if (newItem.def.apparel.CoversBodyPart (torsoParts))
 			{
@@ -302,58 +290,59 @@ namespace SeasonalWardrobe
 				return;
 
 			//Season currentSeason = GenDate.CurrentSeason;
-			//int dayOfMonth = GenDate.DayOfMonth;
+			int dayOfMonth = GenDate.DayOfMonth;
+			int hourOfDay = GenTime.HourInt;
+			//if (currentSeason == Season.Fall && dayOfMonth == 1) // First day of fall
 			//if (dayOfMonth % 2 == 0) {
 			//Log.Message("Odd Day");
 
-			counter += tickerAmount;
-			// do this once a day only
-			if (counter % dayTicks == 0)
+			if (dayOfMonth % 2 == 0 && hourOfDay == 10)
 			{
-				// reset counter
-				counter = 0;
+				ColdSeason = true;
+			} else
+			{
+				ColdSeason = false;
+			}
 
-				// Flip-flop the seasons
-				ColdSeason = !ColdSeason;
-				Log.Error (string.Format ("Season is cold: {0}", ColdSeason));
-
-				if (ColdSeason)
+			if (ColdSeason)
+			{
+				if (LastSeason != COLD_SEASON)
 				{
-					if (LastSeason != COLD_SEASON)
-					{
-						// Seasons have changed, so update allowances
-						UnforbidClothing ();
-						ChangeAllowances ();
-						LastSeason = COLD_SEASON;
-					}
-					if (HaveWrap () || HaveHat())
+					// Seasons have changed, so update allowances
+					Log.Error (string.Format ("{0}: Season is cold: {1}", owner.Nickname, ColdSeason));
+					UnforbidClothing ();
+					ChangeAllowances ();
+					LastSeason = COLD_SEASON;
+					if (HaveWrap () || HaveHat ())
 					{	
-						Log.Message (string.Format ("Issuing wear job for {0}", owner));
+						Log.Message (string.Format ("Issuing Cold Season wear job for {0}", owner));
 						IssueWearJob ();
-					} 
+					}
 				}
-				if (!ColdSeason)
+			}
+			if (!ColdSeason)
+			{
+				if (LastSeason != WARM_SEASON)
 				{
-					if (LastSeason != WARM_SEASON)
-					{
-						// Seasons have changed, so update allowances
-						UnforbidClothing ();
-						ChangeAllowances ();
-						LastSeason = WARM_SEASON;
-					}
-					foreach (Apparel apparel in owner.apparel.WornApparel)
-					{
-						if (coldSeasonAll.Contains (apparel.def))
-						{	
-							// Pawn is wearing our stuff
-							Log.Message (owner.Nickname + " is wearing " + apparel.Label);
-						}
-					}
-					if (HaveWrap () || HaveHat())
+					// Seasons have changed, so update allowances
+					Log.Error (string.Format ("{0}: Season is cold: {1}", owner.Nickname, ColdSeason));
+					UnforbidClothing ();
+					ChangeAllowances ();
+					LastSeason = WARM_SEASON;
+					if (HaveWrap () || HaveHat ())
 					{	
-						Log.Message (string.Format ("Issuing wear job for {0}", owner));
+						Log.Message (string.Format ("Issuing Warm Season wear job for {0}", owner));
 						IssueWearJob ();
 					}
+
+//					foreach (Apparel apparel in owner.apparel.WornApparel)
+//					{
+//						if (coldSeasonAll.Contains (apparel.def))
+//						{	
+//							// Pawn is wearing our stuff
+//							Log.Message (owner.Nickname + " is wearing " + apparel.Label);
+//						}
+//					}
 				}
 			}
 		}
@@ -438,15 +427,19 @@ namespace SeasonalWardrobe
 			{
 				// Autumn & Winter
 				if (!HaveHat ())
+					Log.Message (String.Format("{0}: Currently cold season and allowing warm weather hats", owner.Nickname));
 					allowedDefList.AddRange (warmSeasonHats);
 				if (!HaveWrap())
+					Log.Message (String.Format("{0}: Currently cold season and allowing warm weather wraps", owner.Nickname));
 					allowedDefList.AddRange (warmSeasonWraps);
 			} else
 			{
 				// Spring & Summer
 				if (!HaveHat ())
+					Log.Message (String.Format("{0}: Currently warm season and allowing cold weather hats", owner.Nickname));
 					allowedDefList.AddRange (coldSeasonHats);
 				if (!HaveWrap ())
+					Log.Message (String.Format("{0}: Currently warm season and allowing cold weather wraps", owner.Nickname));
 					allowedDefList.AddRange (coldSeasonWraps);
 			}
 
@@ -531,8 +524,9 @@ namespace SeasonalWardrobe
 		/// </summary>
 		void PerformAssignWardrobeAction()
 		{
-			//Dialog_AssignWardrobeOwner (this);
-			Log.Message ("Assign Owner Wardrobe");
+//			Log.Message ("Assign Owner Wardrobe");
+			Find.LayerStack.Add (new Dialog_AssignWardrobeOwner (this));
+			return;
 		}
 	} // class Building_Wardrobe
 }
