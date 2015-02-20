@@ -61,7 +61,7 @@ namespace SeasonalWardrobe
 		public Texture2D assignRoomOwnerIcon;
 
 		// Debug stuff
-		public int dayTicks = 10000;
+		public int dayTicks = 20000;
 		public int counter = 0;
 
 
@@ -83,9 +83,14 @@ namespace SeasonalWardrobe
 		static Building_SeasonalWardrobe ()
 		{
 			// Note: this type is marked as 'beforefieldinit'.
+
 			// Add definition to our BodyPartsRecords so we can distinguish between parkas and tuques, for instance
+			Building_SeasonalWardrobe.torsoParts.groups.Add (BodyPartGroupDefOf.Torso);
+			Building_SeasonalWardrobe.headParts.groups.Add (BodyPartGroupDefOf.UpperHead);
+			Building_SeasonalWardrobe.headParts.groups.Add (BodyPartGroupDefOf.FullHead);
 
-
+			// Build list of allowed apparel defs
+			Building_SeasonalWardrobe.CreateApparelLists ();
 		}
 
 		//
@@ -103,16 +108,9 @@ namespace SeasonalWardrobe
 			assignOwnerIcon = ContentFinder<Texture2D>.Get("UI/Commands/AssignOwner");
 			assignRoomOwnerIcon = ContentFinder<Texture2D>.Get ("UI/Commands/AssignRoomOwner");
 
-			torsoParts.groups.Add (BodyPartGroupDefOf.Torso);
-			headParts.groups.Add (BodyPartGroupDefOf.UpperHead);
-			headParts.groups.Add (BodyPartGroupDefOf.FullHead);
-
 			// Assign this room's owner to the wardrobe
 			if (owner == null)
 				AssignRoomOwner ();
-
-			// Build list of allowed apparel defs
-			CreateApparelLists ();
 
 			// Set what is allowed to be stored herea
 			ChangeAllowances ();
@@ -224,10 +222,10 @@ namespace SeasonalWardrobe
 		{
 			Log.Message (string.Format ("[{0}] Received in wardrobe: {1}", owner.Nickname, newItem.Label));
 
-			if (newItem.def.apparel.CoversBodyPart (torsoParts))
+			if (IsTorsoShell(newItem.def))
 			{
 				storedWrap = newItem;
-			} else if (newItem.def.apparel.CoversBodyPart (headParts))
+			} else if (IsOverHead(newItem.def))
 			{
 				storedHat = newItem;
 			} else 
@@ -248,10 +246,10 @@ namespace SeasonalWardrobe
 		{
 			Log.Message (string.Format ("[{0}] Removed from wardrobe: {1}", owner.Nickname, newItem.Label));
 
-			if (newItem.def.apparel.CoversBodyPart (torsoParts))
+			if (IsTorsoShell(newItem.def))
 			{
 				storedWrap = null;
-			} else if (newItem.def.apparel.CoversBodyPart (headParts))
+			} else if (IsOverHead(newItem.def))
 			{
 				storedHat = null;
 			} else 
@@ -273,7 +271,6 @@ namespace SeasonalWardrobe
 			//if (destroyedFlag) // Do nothing further, when destroyed (just a safety)
 			//	return;
 
-			// Don't forget the base work
 			base.TickRare();
 
 			// Call work function
@@ -290,6 +287,8 @@ namespace SeasonalWardrobe
 		/// <param name="tickerAmount">Ticker amount.</param>
 		private void DoTickerWork (int tickerAmount)
 		{
+			counter += tickerAmount;
+
 			if (owner == null)
 				return;
 
@@ -300,12 +299,11 @@ namespace SeasonalWardrobe
 			//if (dayOfMonth % 2 == 0) {
 			//Log.Message("Odd Day");
 
-			if (dayOfMonth % 2 == 0 && hourOfDay == 10)
+			if (counter >= dayTicks)
 			{
-				ColdSeason = true;
-			} else
-			{
-				ColdSeason = false;
+				ColdSeason = !ColdSeason;
+				Log.Warning (String.Format ("[{0}] Is cold season? {1}", owner.Nickname, ColdSeason));
+				counter = 0;
 			}
 
 			if (ColdSeason)
@@ -434,12 +432,12 @@ namespace SeasonalWardrobe
 				if (!HaveHat ())
 				{
 					Log.Message (String.Format ("[{0}] Currently cold season and allowing warm weather hats", owner.Nickname));
-					allowedDefList.AddRange (warmSeasonHats);
+					allowedDefList.AddRange (Building_SeasonalWardrobe.warmSeasonHats);
 				}
 				if (!HaveWrap ())
 				{
 					Log.Message (String.Format ("[{0}] Currently cold season and allowing warm weather wraps", owner.Nickname));
-					allowedDefList.AddRange (warmSeasonWraps);
+					allowedDefList.AddRange (Building_SeasonalWardrobe.warmSeasonWraps);
 				}
 			} else
 			{
@@ -447,12 +445,12 @@ namespace SeasonalWardrobe
 				if (!HaveHat ())
 				{
 					Log.Message (String.Format ("[{0}] Currently warm season and allowing cold weather hats", owner.Nickname));
-					allowedDefList.AddRange (coldSeasonHats);
+					allowedDefList.AddRange (Building_SeasonalWardrobe.coldSeasonHats);
 				}
 				if (!HaveWrap ())
 				{
 					Log.Message (String.Format ("[{0}] Currently warm season and allowing cold weather wraps", owner.Nickname));
-					allowedDefList.AddRange (coldSeasonWraps);
+					allowedDefList.AddRange (Building_SeasonalWardrobe.coldSeasonWraps);
 				}
 			}
 
@@ -506,39 +504,63 @@ namespace SeasonalWardrobe
 					int statInsulationCold = (int)thingDef.statBases.GetStatValueFromList (StatDefOf.Insulation_Cold, 500);
 //					Log.Message(String.Format("{0} stat: Insulation_Cold = {1}", thingDef.label, statInsulationCold));
 
-					if (thingDef.apparel.CoversBodyPart (headParts))
+					if (IsOverHead(thingDef))
 					{
 						if (statInsulationCold <= HEAD_INSULATION_LIMIT)
 						{
 //							Log.Message (String.Format ("Adding {0} to cold weather hats.", thingDef.label));
-							coldSeasonHats.Add (thingDef);
+							Building_SeasonalWardrobe.coldSeasonHats.Add (thingDef);
 						} else
 						{
 //							Log.Message (String.Format ("Adding {0} to warm weather hats.", thingDef.label));
-							warmSeasonHats.Add (thingDef);
+							Building_SeasonalWardrobe.warmSeasonHats.Add (thingDef);
 						}
-					} else if (thingDef.apparel.CoversBodyPart (torsoParts))
+					} else if (IsTorsoShell(thingDef))
 					{
 						if (statInsulationCold <= TORSO_INSULATION_LIMIT)
 						{
 //							Log.Message (String.Format ("Adding {0} to cold weather wraps.", thingDef.label));
-							coldSeasonWraps.Add (thingDef);
+							Building_SeasonalWardrobe.coldSeasonWraps.Add (thingDef);
 						} else
 						{
 //							Log.Message (String.Format ("Adding {0} to warm weather wraps.", thingDef.label));
-							warmSeasonWraps.Add (thingDef);
+							Building_SeasonalWardrobe.warmSeasonWraps.Add (thingDef);
 						}
 					}
-					coldSeasonAll.AddRange (coldSeasonHats);
-					coldSeasonAll.AddRange (coldSeasonWraps);
-					warmSeasonAll.AddRange (warmSeasonHats);
-					warmSeasonAll.AddRange (warmSeasonWraps);
+					Building_SeasonalWardrobe.coldSeasonAll.AddRange (coldSeasonHats);
+					Building_SeasonalWardrobe.coldSeasonAll.AddRange (coldSeasonWraps);
+					Building_SeasonalWardrobe.warmSeasonAll.AddRange (warmSeasonHats);
+					Building_SeasonalWardrobe.warmSeasonAll.AddRange (warmSeasonWraps);
 				}
 			}
-			Log.Message (String.Format ("coldSeasonHats contains {0} ThingDefs", coldSeasonHats.Count));
-			Log.Message (String.Format ("coldSeasonWraps contains {0} ThingDefs", coldSeasonWraps.Count));
-			Log.Message (String.Format ("warmSeasonHats contains {0} ThingDefs", warmSeasonHats.Count));
-			Log.Message (String.Format ("warmSeasonWraps contains {0} ThingDefs", warmSeasonWraps.Count));
+			Log.Message (String.Format ("coldSeasonHats contains {0} ThingDefs", Building_SeasonalWardrobe.coldSeasonHats.Count));
+			Log.Message (String.Format ("coldSeasonWraps contains {0} ThingDefs", Building_SeasonalWardrobe.coldSeasonWraps.Count));
+			Log.Message (String.Format ("warmSeasonHats contains {0} ThingDefs", Building_SeasonalWardrobe.warmSeasonHats.Count));
+			Log.Message (String.Format ("warmSeasonWraps contains {0} ThingDefs", Building_SeasonalWardrobe.warmSeasonWraps.Count));
+		}
+
+		static bool IsOverHead(ThingDef thingDef)
+		{
+			if (!thingDef.IsApparel)
+			{
+				return false;
+			}
+			else
+			{
+				return thingDef.apparel.layers.Contains (ApparelLayer.Overhead) && thingDef.apparel.CoversBodyPart (headParts);
+			}
+		}
+
+		static bool IsTorsoShell(ThingDef thingDef)
+		{
+			if (!thingDef.IsApparel)
+			{
+				return false;
+			}
+			else
+			{
+				return thingDef.apparel.layers.Contains (ApparelLayer.Shell) && thingDef.apparel.CoversBodyPart (torsoParts);
+			}
 		}
 
 		/// <summary>
