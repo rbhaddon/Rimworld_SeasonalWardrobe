@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Buildings>
+
+  <ThingDef Name="BuildingBase" Abstract="True">
+    <category>Building</category>
+    <thingClass>Building</thingClass>
+    <soundImpactDefault>BulletImpactMetal</soundImpactDefault>
+    <selectable>true</selectable>
+    <drawerType>MapMeshAndRealTime</drawerType>
+    <terrainAffordanceNeeded>Light</terrainAffordanceNeeded>
+    <repairEffect>Repair</repairEffect>
+  </ThingDef>
+
+  <ThingDef ParentName="BuildingBase">
+    <defName>SeasonalWardrobe</defName>
+    <eType>BuildingComplex</eType>
+    <label>wardrobe</label>
+    <thingClass>SeasonalWardrobe.Building_SeasonalWardrobe</thingClass>
+    <graphicPath>Things/Building/Furniture/EquipmentRack</graphicPath>
+    <graphicClass>Graphic_Single</graphicClass>
+    <altitudeLayer>Waist</altitudeLayer>
+    <passability>Impassable</passability>
+    <castEdgeShadows>true</castEdgeShadows>
+    <DrawGUIOverlay>True</DrawGUIOverlay>
+    <tickerType>Rare</tickerType>
+    <stuffCategories>
+      <li>Metallic</li>
+      <li>Woody</li>
+      <li>Stony</li>
+    </stuffCategories>
+    <costStuffCount>30</costStuffCount>
+    <statBases>
+      <MaxHealth>100</MaxHealth>
+      <WorkToMake>700</WorkToMake>
+      <Flammability>1.0</Flammability>
+    </statBases>
+    <description>A convenient place to store your cold and warm weather gear.</description>
+    <size>(2,1)</size>
+    <graphicOverdraw>true</graphicOverdraw>
+    <killedLeavings>
+    </killedLeavings>
+    <building>
+      <fixedStorageSettings>
+        <priority>Important</priority>
+        <allowances>
+          <categories>
+            <li>Apparel</li>
+          </categories>
+<!--
+          <thingDefs>
+            <li>Apparel_Tuque</li>
+            <li>Apparel_PowerArmorHelmet</li>
+            <li>Apparel_KevlarHelmet</li>
+            <li>Apparel_MilitaryHelmet</li>
+            <li>Apparel_Parka</li>
+            <li>Apparel_PowerArmor</li>
+	  </thingDefs>
+-->
+        </allowances>
+      </fixedStorageSettings>
+    </building>
+    <inspectorTabs>
+      <li>ITab_Storage</li>
+    </inspectorTabs>
+    <designationCategory>Furniture</designationCategory>
+    <staticSunShadowHeight>0.5</staticSunShadowHeight>
+    <itemSurface>true</itemSurface>
+  </ThingDef>
+
+</Buildings>

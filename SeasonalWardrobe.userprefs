@@ -1,11 +1,10 @@
 ﻿<Properties StartupItem="SeasonalWardrobe\SeasonalWardrobe.csproj">
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Release" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="SeasonalWardrobe\JobDriver_WearClothes.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="SeasonalWardrobe\Building_SeasonalWardrobe.cs">
     <Files>
-      <File FileName="SeasonalWardrobe\Building_SeasonalWardrobe.cs" Line="10" Column="10" />
-      <File FileName="SeasonalWardrobe\JobDriver_WearClothes.cs" Line="72" Column="72" />
+      <File FileName="SeasonalWardrobe\Building_SeasonalWardrobe.cs" Line="4" Column="4" />
+      <File FileName="SeasonalWardrobe\JobDriver_WearClothes.cs" Line="1" Column="1" />
       <File FileName="SeasonalWardrobe\Dialog_AssignWardrobeOwner.cs" Line="1" Column="1" />
-      <File FileName="SeasonalWardrobe\Helper.cs" Line="1" Column="1" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>

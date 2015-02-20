@@ -26,6 +26,9 @@ namespace SeasonalWardrobe
 		const int COLD_SEASON = 0;
 		const int WARM_SEASON = 1;
 
+		const int HEAD_INSULATION_LIMIT = -10;
+		const int TORSO_INSULATION_LIMIT = -30;
+
 		// Owner is of this wardrobe is colonist who will receive the wear apparel jobs
 		public Pawn owner = null;
 
@@ -65,11 +68,11 @@ namespace SeasonalWardrobe
 		public override void ExposeData ()
 		{
 			base.ExposeData ();
-			Scribe_References.LookReference<Pawn> (ref this.owner, "owner");
+			Scribe_References.LookReference<Pawn> (ref owner, "owner");
 			Scribe_Values.LookValue<int> (ref LastSeason, "LastSeason");
 			Scribe_Values.LookValue<bool> (ref ColdSeason, "ColdSeason");
-			Scribe_References.LookReference<Thing> (ref this.storedHat, "storedHat");
-			Scribe_References.LookReference<Thing> (ref this.storedWrap, "storedWrap");
+			Scribe_References.LookReference<Thing> (ref storedHat, "storedHat");
+			Scribe_References.LookReference<Thing> (ref storedWrap, "storedWrap");
 
 		}
 
@@ -118,31 +121,30 @@ namespace SeasonalWardrobe
 
 		public override void DeSpawn ()
 		{
-			owner = null;
-			storedHat.SetForbidden (false);
-			storedWrap.SetForbidden (false);
-			storedHat = null;
-			storedWrap = null;
 			base.DeSpawn ();
+			if (HaveHat ())
+				storedHat.SetForbidden (false);
+			if (HaveWrap ())
+				storedWrap.SetForbidden (false);
 		}
 
 
-		public override void DrawGUIOverlay ()
-		{
-			if (Find.CameraMap.CurrentZoom == CameraZoomRange.Closest) {
-				if (owner != null && owner.InBed () && owner.CurrentBed ().owner == owner) {
-					return;
-				}
-				string text;
-				if (owner != null) {
-					text = owner.Nickname;
-				}
-				else {
-					text = "Unowned".Translate ();
-				}
-				GenWorldUI.DrawThingLabelFor (this, text, new Color (1, 1, 1, 1));
-			}
-		}
+//		public override void DrawGUIOverlay ()
+//		{
+//			if (Find.CameraMap.CurrentZoom == CameraZoomRange.Closest) {
+//				if (owner != null && owner.InBed () && owner.CurrentBed ().owner == owner) {
+//					return;
+//				}
+//				string text;
+//				if (owner != null) {
+//					text = owner.Nickname;
+//				}
+//				else {
+//					text = "Unowned".Translate ();
+//				}
+//				GenWorldUI.DrawThingLabel (this, text, new Color (1, 1, 1, 1));
+//			}
+//		}
 
 
 		public override string GetInspectString ()
@@ -172,44 +174,46 @@ namespace SeasonalWardrobe
 		}
 
 
-		///<summary>
-		///This creates the command buttons to control the wardrobe
-		///</summary>
-		///<returns>The list of command buttons to display.</returns>
-		public override IEnumerable<Command> GetCommands()
+//		///<summary>
+//		///This creates the command buttons to control the wardrobe
+//		///</summary>
+//		///<returns>The list of command buttons to display.</returns>
+		public override IEnumerable<Gizmo> GetGizmos()
 		{
-			IList<Command> buttonList = new List<Command>();
-			int groupKeyBase = 12091967;
+			IList<Gizmo> gizmoList = new List<Gizmo> ();
 
-			Command_Action assignOwnerButton = new Command_Action();
-			assignOwnerButton.icon = assignOwnerIcon;
-			assignOwnerButton.defaultDesc = "Assign owner to wardrobe.";
-			assignOwnerButton.defaultLabel = "Assign Owner";
-			assignOwnerButton.activateSound = SoundDef.Named("Click");
-			assignOwnerButton.action = new Action(PerformAssignWardrobeAction);
-			assignOwnerButton.groupKey = groupKeyBase + 1;
-			buttonList.Add(assignOwnerButton);
+//			IList<Command> buttonList = new List<Command>();
+//			int groupKeyBase = 12091967;
+//
+//			Command_Action assignOwnerButton = new Command_Action();
+//			assignOwnerButton.icon = assignOwnerIcon;
+//			assignOwnerButton.defaultDesc = "Assign owner to wardrobe.";
+//			assignOwnerButton.defaultLabel = "Assign Owner";
+//			assignOwnerButton.activateSound = SoundDef.Named("Click");
+//			assignOwnerButton.action = new Action(PerformAssignWardrobeAction);
+//			assignOwnerButton.groupKey = groupKeyBase + 1;
+//			buttonList.Add(assignOwnerButton);
+//
+//			Command_Action assignRoomOwnerButton = new Command_Action();
+//			assignRoomOwnerButton.icon = assignRoomOwnerIcon;
+//			assignRoomOwnerButton.defaultDesc = "Assign owner of room to wardrobe.";
+//			assignRoomOwnerButton.defaultLabel = "Assign Owner of Room";
+//			assignRoomOwnerButton.activateSound = SoundDef.Named("Click");
+//			assignRoomOwnerButton.action = new Action(AssignRoomOwner);
+//			assignRoomOwnerButton.groupKey = groupKeyBase + 2;
+//			buttonList.Add(assignRoomOwnerButton);
 
-			Command_Action assignRoomOwnerButton = new Command_Action();
-			assignRoomOwnerButton.icon = assignRoomOwnerIcon;
-			assignRoomOwnerButton.defaultDesc = "Assign owner of room to wardrobe.";
-			assignRoomOwnerButton.defaultLabel = "Assign Owner of Room";
-			assignRoomOwnerButton.activateSound = SoundDef.Named("Click");
-			assignRoomOwnerButton.action = new Action(AssignRoomOwner);
-			assignRoomOwnerButton.groupKey = groupKeyBase + 2;
-			buttonList.Add(assignRoomOwnerButton);
-
-			IEnumerable<Command> resultButtonList;
-			IEnumerable<Command> basebuttonList = base.GetCommands();
-			if (basebuttonList != null)
+			IEnumerable<Gizmo> resultGizmoList;
+			IEnumerable<Gizmo> baseGizmoList = base.GetGizmos();
+			if (baseGizmoList != null)
 			{
-				resultButtonList = buttonList.AsEnumerable<Command>().Concat(basebuttonList);
+				resultGizmoList = gizmoList.AsEnumerable<Gizmo>().Concat(baseGizmoList);
 			}
 			else
 			{
-				resultButtonList = buttonList.AsEnumerable<Command>();
+				resultGizmoList = gizmoList.AsEnumerable<Gizmo>();
 			}
-			return (resultButtonList);
+			return (resultGizmoList);
 		}
 
 		/// <summary>
@@ -218,7 +222,7 @@ namespace SeasonalWardrobe
 		/// <param name="newItem">New item.</param>
 		public override void Notify_ReceivedThing(Thing newItem)
 		{
-//			Log.Message (string.Format ("Received in wardrobe: {0}", newItem.Label));
+			Log.Message (string.Format ("[{0}] Received in wardrobe: {1}", owner.Nickname, newItem.Label));
 
 			if (newItem.def.apparel.CoversBodyPart (torsoParts))
 			{
@@ -228,7 +232,7 @@ namespace SeasonalWardrobe
 				storedHat = newItem;
 			} else 
 			{
-				Log.Error (string.Format ("Invalid item stored in wardrobe: {0}", newItem.Label));
+				Log.Error (string.Format ("[{0}] Invalid item stored in wardrobe: {1}", owner.Nickname, newItem.Label));
 			}
 			newItem.SetForbidden (true);
 			ChangeAllowances ();
@@ -242,7 +246,7 @@ namespace SeasonalWardrobe
 		/// <param name="newItem">Lost item.</param>
 		public override void Notify_LostThing(Thing newItem)
 		{
-//			Log.Message (String.Format("Removed from wardrobe: {0}", newItem.Label));
+			Log.Message (string.Format ("[{0}] Removed from wardrobe: {1}", owner.Nickname, newItem.Label));
 
 			if (newItem.def.apparel.CoversBodyPart (torsoParts))
 			{
@@ -252,7 +256,7 @@ namespace SeasonalWardrobe
 				storedHat = null;
 			} else 
 			{
-				Log.Error (string.Format ("Invalid item removed from wardrobe: {0}", newItem.Label));
+				Log.Error (string.Format ("[{0}] Invalid item removed from wardrobe: {1}", owner.Nickname, newItem.Label));
 			}
 			ChangeAllowances ();
 		}
@@ -421,32 +425,42 @@ namespace SeasonalWardrobe
 		/// </summary>
 		void ChangeAllowances()
 		{
+			Log.Message(String.Format("[{0}] Changing wardrobe allowances", owner.Nickname));
 			var allowedDefList = new List<ThingDef> ();
 
 			if (ColdSeason)
 			{
 				// Autumn & Winter
 				if (!HaveHat ())
-					Log.Message (String.Format("{0}: Currently cold season and allowing warm weather hats", owner.Nickname));
+				{
+					Log.Message (String.Format ("[{0}] Currently cold season and allowing warm weather hats", owner.Nickname));
 					allowedDefList.AddRange (warmSeasonHats);
-				if (!HaveWrap())
-					Log.Message (String.Format("{0}: Currently cold season and allowing warm weather wraps", owner.Nickname));
+				}
+				if (!HaveWrap ())
+				{
+					Log.Message (String.Format ("[{0}] Currently cold season and allowing warm weather wraps", owner.Nickname));
 					allowedDefList.AddRange (warmSeasonWraps);
+				}
 			} else
 			{
 				// Spring & Summer
 				if (!HaveHat ())
-					Log.Message (String.Format("{0}: Currently warm season and allowing cold weather hats", owner.Nickname));
+				{
+					Log.Message (String.Format ("[{0}] Currently warm season and allowing cold weather hats", owner.Nickname));
 					allowedDefList.AddRange (coldSeasonHats);
+				}
 				if (!HaveWrap ())
-					Log.Message (String.Format("{0}: Currently warm season and allowing cold weather wraps", owner.Nickname));
+				{
+					Log.Message (String.Format ("[{0}] Currently warm season and allowing cold weather wraps", owner.Nickname));
 					allowedDefList.AddRange (coldSeasonWraps);
+				}
 			}
 
 			// Update allowances
 			settings.allowances.DisallowAll ();
 			foreach (var td in allowedDefList)
 			{
+				Log.Message (String.Format ("[{0}] allowing in wardrobe: {1}", owner.Nickname, td.label));
 				settings.allowances.SetAllow (td, true);
 			}
 		}
@@ -482,41 +496,49 @@ namespace SeasonalWardrobe
 		/// <summary>
 		/// Creates the apparel lists, separated into what to warm and cold season and head vs. torso categories
  		/// </summary>
-		void CreateApparelLists()
+		static void CreateApparelLists()
 		{
 			IEnumerable<ThingDef> allThingDefs = DefDatabase<ThingDef>.AllDefs;
 			foreach (ThingDef thingDef in allThingDefs)
 			{
 				if (thingDef.IsApparel)
 				{
-					int comfyMaxTemp = (int)thingDef.equippedStatOffsets.GetStatOffsetFromList (StatDefOf.ComfyTemperatureMax);
-//					Log.Message(String.Format("{0} ComfyTempMax: {1}", thingDef.label, comfyMaxTemp));
+					int statInsulationCold = (int)thingDef.statBases.GetStatValueFromList (StatDefOf.Insulation_Cold, 500);
+//					Log.Message(String.Format("{0} stat: Insulation_Cold = {1}", thingDef.label, statInsulationCold));
 
-					if (comfyMaxTemp < 0)
+					if (thingDef.apparel.CoversBodyPart (headParts))
 					{
-						// Cold Season clothing
-						coldSeasonAll.Add (thingDef);
-						if (thingDef.apparel.CoversBodyPart (headParts))
+						if (statInsulationCold <= HEAD_INSULATION_LIMIT)
 						{
+//							Log.Message (String.Format ("Adding {0} to cold weather hats.", thingDef.label));
 							coldSeasonHats.Add (thingDef);
-						} else if (thingDef.apparel.CoversBodyPart (torsoParts))
+						} else
 						{
-							coldSeasonWraps.Add (thingDef);
-						}
-					} else
-					{
-						// Warm Season clothing
-						warmSeasonAll.Add (thingDef);
-						if (thingDef.apparel.CoversBodyPart(headParts))
-						{
+//							Log.Message (String.Format ("Adding {0} to warm weather hats.", thingDef.label));
 							warmSeasonHats.Add (thingDef);
-						} else if (thingDef.apparel.CoversBodyPart(torsoParts))
+						}
+					} else if (thingDef.apparel.CoversBodyPart (torsoParts))
+					{
+						if (statInsulationCold <= TORSO_INSULATION_LIMIT)
 						{
-							warmSeasonWraps.Add(thingDef);
+//							Log.Message (String.Format ("Adding {0} to cold weather wraps.", thingDef.label));
+							coldSeasonWraps.Add (thingDef);
+						} else
+						{
+//							Log.Message (String.Format ("Adding {0} to warm weather wraps.", thingDef.label));
+							warmSeasonWraps.Add (thingDef);
 						}
 					}
+					coldSeasonAll.AddRange (coldSeasonHats);
+					coldSeasonAll.AddRange (coldSeasonWraps);
+					warmSeasonAll.AddRange (warmSeasonHats);
+					warmSeasonAll.AddRange (warmSeasonWraps);
 				}
 			}
+			Log.Message (String.Format ("coldSeasonHats contains {0} ThingDefs", coldSeasonHats.Count));
+			Log.Message (String.Format ("coldSeasonWraps contains {0} ThingDefs", coldSeasonWraps.Count));
+			Log.Message (String.Format ("warmSeasonHats contains {0} ThingDefs", warmSeasonHats.Count));
+			Log.Message (String.Format ("warmSeasonWraps contains {0} ThingDefs", warmSeasonWraps.Count));
 		}
 
 		/// <summary>

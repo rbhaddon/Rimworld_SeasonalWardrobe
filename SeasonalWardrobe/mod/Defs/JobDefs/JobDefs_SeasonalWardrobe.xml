@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<JobDefs>
+
+  <!--========= Goto wardrobe and change clothes  ============-->
+
+  <JobDef>
+    <defName>WearClothesInWardrobe</defName>
+    <driverClass>SeasonalWardrobe.JobDriver_WearClothes</driverClass>
+    <reportString>Changing clothes.</reportString>
+  </JobDef>
+
+
+</JobDefs>

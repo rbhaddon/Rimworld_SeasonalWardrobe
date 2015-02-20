@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+
+  <CommandWardrobeSetOwnerLabel>Set owner</CommandWardrobeSetOwnerLabel>
+  <CommandWardrobeSetOwnerDesc>Assign this wardrobe to be owned by a specific colonist.</CommandWardrobeSetOwnerDesc>
+  <WardrobeAssign>Assign</WardrobeAssign>
+
+</LanguageData>
