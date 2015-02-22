@@ -22,6 +22,5 @@ namespace SeasonalWardrobe
 			Log.Error (String.Format ("Failed to find wardrobe owned by {0}", pawn.Nickname));
 			return null;
 		}
-
 	}
 }

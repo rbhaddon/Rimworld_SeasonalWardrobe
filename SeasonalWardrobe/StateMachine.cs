@@ -5,28 +5,21 @@ namespace SeasonalWardrobe
 {
 	public enum AllowanceState
 	{
-		Unowned,
 		AllowAll,
 		AllowHat,
 		AllowWrap,
-		AllowNone,
-		WearAny,
-		WearHat,
-		WearWrap
+		AllowNone
 	}
 
 	public enum Command
 	{
-		AddOwner,
-		RemoveOwner,
 		AddHat,
 		RemoveHat,
 		AddWrap,
-		RemoveWrap,
-		ChangeSeason
+		RemoveWrap
 	}
 
-	public class Process
+	public class FSM_Process
 	{
 		class StateTransition
 		{
@@ -54,40 +47,25 @@ namespace SeasonalWardrobe
 		Dictionary<StateTransition, AllowanceState> transitions;
 		public AllowanceState CurrentState { get; private set; }
 
-		public Process()
+		public FSM_Process()
 		{
 			CurrentState = AllowanceState.AllowAll;
 			transitions = new Dictionary<StateTransition, AllowanceState>
 			{
-				{ new StateTransition(AllowanceState.Unowned, Command.AddOwner), AllowanceState.AllowAll },
+				// The normal state transistions
 				{ new StateTransition(AllowanceState.AllowAll, Command.AddHat), AllowanceState.AllowWrap },
 				{ new StateTransition(AllowanceState.AllowAll, Command.AddWrap), AllowanceState.AllowHat },
-				{ new StateTransition(AllowanceState.AllowAll, Command.ChangeSeason), AllowanceState.WearAny },
-				{ new StateTransition(AllowanceState.AllowAll, Command.RemoveOwner), AllowanceState.Unowned },
-				{ new StateTransition(AllowanceState.AllowAll, Command.RemoveHat), AllowanceState.AllowHat },
-				{ new StateTransition(AllowanceState.AllowAll, Command.RemoveWrap), AllowanceState.AllowWrap },
 				{ new StateTransition(AllowanceState.AllowHat, Command.AddHat), AllowanceState.AllowNone },
 				{ new StateTransition(AllowanceState.AllowHat, Command.RemoveWrap), AllowanceState.AllowAll },
-				{ new StateTransition(AllowanceState.AllowHat, Command.ChangeSeason), AllowanceState.WearAny },
-				{ new StateTransition(AllowanceState.AllowHat, Command.RemoveOwner), AllowanceState.Unowned },
 				{ new StateTransition(AllowanceState.AllowWrap, Command.AddWrap), AllowanceState.AllowNone },
 				{ new StateTransition(AllowanceState.AllowWrap, Command.RemoveHat), AllowanceState.AllowAll },
-				{ new StateTransition(AllowanceState.AllowWrap, Command.ChangeSeason), AllowanceState.WearAny },
-				{ new StateTransition(AllowanceState.AllowWrap, Command.RemoveOwner), AllowanceState.Unowned },
 				{ new StateTransition(AllowanceState.AllowNone, Command.RemoveHat), AllowanceState.AllowHat },
 				{ new StateTransition(AllowanceState.AllowNone, Command.RemoveWrap), AllowanceState.AllowWrap },
-				{ new StateTransition(AllowanceState.AllowNone, Command.ChangeSeason), AllowanceState.WearAny },
-				{ new StateTransition(AllowanceState.AllowNone, Command.RemoveOwner), AllowanceState.Unowned },
-				{ new StateTransition(AllowanceState.WearAny, Command.ChangeSeason), AllowanceState.AllowAll },
-				{ new StateTransition(AllowanceState.WearAny, Command.RemoveHat), AllowanceState.WearWrap },
-				{ new StateTransition(AllowanceState.WearAny, Command.RemoveWrap), AllowanceState.WearHat },
-				{ new StateTransition(AllowanceState.WearAny, Command.RemoveOwner), AllowanceState.Unowned },
-				{ new StateTransition(AllowanceState.WearHat, Command.RemoveHat), AllowanceState.AllowAll },
-				{ new StateTransition(AllowanceState.WearHat, Command.ChangeSeason), AllowanceState.AllowAll },
-				{ new StateTransition(AllowanceState.WearHat, Command.RemoveOwner), AllowanceState.Unowned },
-				{ new StateTransition(AllowanceState.WearWrap, Command.RemoveWrap), AllowanceState.AllowAll },
-				{ new StateTransition(AllowanceState.WearWrap, Command.ChangeSeason), AllowanceState.AllowAll },
-				{ new StateTransition(AllowanceState.WearWrap, Command.RemoveOwner), AllowanceState.Unowned }
+
+				// These are the odd transitions, like what happens when seasons change but stored clothing
+				// was never removed from the last season.
+				{ new StateTransition(AllowanceState.AllowAll, Command.RemoveHat), AllowanceState.AllowHat },
+				{ new StateTransition(AllowanceState.AllowAll, Command.RemoveWrap), AllowanceState.AllowWrap },
 			};
 		}
 
@@ -106,19 +84,4 @@ namespace SeasonalWardrobe
 			return CurrentState;
 		}
 	}
-
-
-//	public class Program
-//	{
-//		static void Main(string[] args)
-//		{
-//			Process p = new Process();
-//			Console.WriteLine("Current State = " + p.CurrentState);
-//			Console.WriteLine("Command.Begin: Current State = " + p.MoveNext(Command.Begin));
-//			Console.WriteLine("Command.Pause: Current State = " + p.MoveNext(Command.Pause));
-//			Console.WriteLine("Command.End: Current State = " + p.MoveNext(Command.End));
-//			Console.WriteLine("Command.Exit: Current State = " + p.MoveNext(Command.Exit));
-//			Console.ReadLine();
-//		}
-//	}
 }

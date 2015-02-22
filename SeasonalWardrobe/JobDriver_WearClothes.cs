@@ -27,7 +27,7 @@ namespace SeasonalWardrobe
 
 		protected override IEnumerable<Toil> MakeNewToils()
 		{
-			Log.Message (String.Format ("{0} received WearClothes job.", pawn));
+//			Log.Message (String.Format ("{0} received WearClothes job.", pawn));
 
 			// Set fail conditions
 			this.FailOnBurningImmobile (WardrobeIdx);
