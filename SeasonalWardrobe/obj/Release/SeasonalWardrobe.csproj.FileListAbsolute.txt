@@ -6,3 +6,6 @@ C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\bin\
 C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\bin\Release\SeasonalWardrobe.pdb
 C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.dll
 C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.pdb
+C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\bin\Release\Assembly-CSharp.dll
+C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\bin\Release\UnityEngine.dll
+C:\Users\robh\Documents\Projects\Rimworld_SeasonalWardrobe\SeasonalWardrobe\obj\Release\SeasonalWardrobe.csprojResolveAssemblyReference.cache

@@ -31,19 +31,17 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>Source-DLLs\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="Assembly-CSharp">
+      <HintPath>Source-DLLs\Assembly-CSharp.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine">
       <HintPath>Source-DLLs\UnityEngine.dll</HintPath>
-      <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -54,6 +52,7 @@
     <Compile Include="JobDriver_WearClothes.cs" />
     <Compile Include="Dialog_AssignWardrobeOwner.cs" />
     <Compile Include="Helper.cs" />
+    <Compile Include="StateMachine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
