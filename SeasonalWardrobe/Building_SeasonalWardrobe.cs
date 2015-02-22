@@ -47,7 +47,6 @@ namespace SeasonalWardrobe
 		public Pawn owner = null;
 
 		public bool ColdSeason = false;
-		public int LastSeason = COLD_SEASON;
 
 		// The two items we can hold
 		public Thing storedHat = null;
@@ -87,7 +86,6 @@ namespace SeasonalWardrobe
 		{
 			base.ExposeData ();
 			Scribe_References.LookReference<Pawn> (ref owner, "owner");
-			Scribe_Values.LookValue<int> (ref LastSeason, "LastSeason");
 			Scribe_Values.LookValue<bool> (ref ColdSeason, "ColdSeason");
 			Scribe_References.LookReference<Thing> (ref storedHat, "storedHat");
 			Scribe_References.LookReference<Thing> (ref storedWrap, "storedWrap");
@@ -105,12 +103,23 @@ namespace SeasonalWardrobe
 			process = new Process ();
 			Log.Message ("Current state: " + process.CurrentState);
 
+			// Restore state
+			if (HaveHat ())
+			{
+				process.MoveNext (Command.AddHat);
+			}
+			if (HaveWrap ())
+			{
+				process.MoveNext (Command.AddWrap);
+			}
+			RunStateMachine ();
+
 			// Assign this room's owner to the wardrobe
 			if (owner == null)
 				AssignRoomOwner ();
 
 			// Set what is allowed to be stored herea
-			ChangeAllowances ();
+			RunStateMachine ();
 		}
 
 
@@ -201,6 +210,24 @@ namespace SeasonalWardrobe
 			assignRoomOwnerButton.groupKey = groupKeyBase + 2;
 			gizmoList.Add(assignRoomOwnerButton);
 
+			Command_Action debugColdButton = new Command_Action();
+//			debugColdButton.icon = assignRoomOwnerIcon;
+			debugColdButton.defaultDesc = "Spawn cold weather clothing in wardrobe.";
+			debugColdButton.defaultLabel = "Debug Cold";
+			debugColdButton.activateSound = SoundDef.Named("Click");
+			debugColdButton.action = new Action(Debug_SpawnColdSeasonApparel);
+			debugColdButton.groupKey = groupKeyBase + 4;
+			gizmoList.Add(debugColdButton);
+
+			Command_Action debugWarmButton = new Command_Action();
+//			debugWarmButton.icon = assignRoomOwnerIcon;
+			debugWarmButton.defaultDesc = "Spawn warm weather clothing in wardrobe.";
+			debugWarmButton.defaultLabel = "Debug Warm";
+			debugWarmButton.activateSound = SoundDef.Named("Click");
+			debugWarmButton.action = new Action(Debug_SpawnWarmSeasonApparel);
+			debugWarmButton.groupKey = groupKeyBase + 6;
+			gizmoList.Add(debugWarmButton);
+
 			IEnumerable<Gizmo> resultGizmoList;
 			IEnumerable<Gizmo> baseGizmoList = base.GetGizmos();
 			if (baseGizmoList != null)
@@ -235,7 +262,7 @@ namespace SeasonalWardrobe
 				Log.Error (string.Format ("[{0}] Invalid item stored in wardrobe: {1}", owner.Nickname, newItem.Label));
 			}
 			newItem.SetForbidden (true);
-			ChangeAllowances ();
+			RunStateMachine ();
 		}
 
 		/// <summary>
@@ -260,7 +287,7 @@ namespace SeasonalWardrobe
 			{
 				Log.Error (string.Format ("[{0}] Invalid item removed from wardrobe: {1}", owner.Nickname, newItem.Label));
 			}
-			ChangeAllowances ();
+			RunStateMachine ();
 		}
 
 
@@ -293,8 +320,8 @@ namespace SeasonalWardrobe
 		{
 			counter += tickerAmount;
 
-			if (owner == null)
-				return;
+//			if (owner == null)
+//				return;
 
 			//Season currentSeason = GenDate.CurrentSeason;
 			int dayOfMonth = GenDate.DayOfMonth;
@@ -305,50 +332,23 @@ namespace SeasonalWardrobe
 
 			if (counter >= dayTicks)
 			{
-				ColdSeason = !ColdSeason;
-				Log.Warning (String.Format ("[{0}] Is cold season? {1}", owner.Nickname, ColdSeason));
 				counter = 0;
-			}
+				ColdSeason = !ColdSeason;
+				if (owner != null)
+					Log.Warning (String.Format ("[{0}] Is cold season? {1}", owner.Nickname, ColdSeason));
+				process.MoveNext (Command.ChangeSeason);
+				RunStateMachine ();
 
-			if (ColdSeason)
-			{
-				if (LastSeason != COLD_SEASON)
-				{
-					// Seasons have changed, so update allowances
-					Log.Error (string.Format ("{0}: Season is cold: {1}", owner.Nickname, ColdSeason));
-					UnforbidClothing ();
-					ChangeAllowances ();
-					LastSeason = COLD_SEASON;
-					if (HaveWrap () || HaveHat ())
-					{	
-						Log.Message (string.Format ("Issuing Cold Season wear job for {0}", owner));
+				if (HaveWrap () || HaveHat ())
+				{	
+					if (owner == null)
+					{
+						process.MoveNext (Command.ChangeSeason);
+					} else
+					{
+						Log.Message (string.Format ("[{0}] Issuing wear job.", owner.Nickname));
 						IssueWearJob ();
 					}
-				}
-			}
-			if (!ColdSeason)
-			{
-				if (LastSeason != WARM_SEASON)
-				{
-					// Seasons have changed, so update allowances
-					Log.Error (string.Format ("{0}: Season is cold: {1}", owner.Nickname, ColdSeason));
-					UnforbidClothing ();
-					ChangeAllowances ();
-					LastSeason = WARM_SEASON;
-					if (HaveWrap () || HaveHat ())
-					{	
-						Log.Message (string.Format ("Issuing Warm Season wear job for {0}", owner));
-						IssueWearJob ();
-					}
-
-//					foreach (Apparel apparel in owner.apparel.WornApparel)
-//					{
-//						if (coldSeasonAll.Contains (apparel.def))
-//						{	
-//							// Pawn is wearing our stuff
-//							Log.Message (owner.Nickname + " is wearing " + apparel.Label);
-//						}
-//					}
 				}
 			}
 		}
@@ -403,6 +403,29 @@ namespace SeasonalWardrobe
 		}
 
 		/// <summary>
+		/// Shoulds the wear job be issued.
+		/// </summary>
+		/// <returns><c>true</c>, if wear job be issued was shoulded, <c>false</c> otherwise.</returns>
+		/// <param name="storedApparel">Apparel thing.</param>
+		public bool ShouldWearJobBeIssued(Thing storedApparel)
+		{
+			// Make additional check for owner.  If they are naked on head and torso shell, maybe issue job anyw
+			bool alreadyWorn = false;
+
+			foreach (Apparel wornApparel in owner.apparel.WornApparel)
+			{
+				if (IsOverHead(wornApparel.def) || IsTorsoShell(wornApparel.def))
+				{
+					Log.Message (String.Format("{0} is already wearing a similar item to {1}.", owner.Nickname, storedApparel.Label));
+					alreadyWorn = true;
+				}
+			}
+
+			return IsCorrectSeasonForApparel (storedApparel) && !alreadyWorn;
+		}
+			
+
+		/// <summary>
 		/// Determines whether the given apparel item is appropriate to wear in the current season
 		/// </summary>
 		/// <returns><c>true</c> if this instance is correct season for apparel the specified apparelThing; otherwise, <c>false</c>.</returns>
@@ -425,48 +448,84 @@ namespace SeasonalWardrobe
 		/// When the season is cold, we store warm clothes and vice-versa.
 		/// When a hat has been added, we disallow additional hats and vice-versa with wraps.
 		/// </summary>
-		void ChangeAllowances()
+		void RunStateMachine()
 		{
-			Log.Message (String.Format("[{0}] Current state is {1}", owner.Nickname, process.CurrentState));
-//			Log.Message(String.Format("[{0}] Changing wardrobe allowances", owner.Nickname));
+			if (owner != null)
+				Log.Message (String.Format ("[{0}] Current state is {1}", owner.Nickname, process.CurrentState));
 			var allowedDefList = new List<ThingDef> ();
+			var hats = new List<ThingDef> ();
+			var wraps = new List<ThingDef> ();
 
 			if (ColdSeason)
 			{
-				// Autumn & Winter
-				if (!HaveHat ())
-				{
-//					Log.Message (String.Format ("[{0}] Currently cold season and allowing warm weather hats", owner.Nickname));
-					allowedDefList.AddRange (Building_SeasonalWardrobe.warmSeasonHats);
-				}
-				if (!HaveWrap ())
-				{
-//					Log.Message (String.Format ("[{0}] Currently cold season and allowing warm weather wraps", owner.Nickname));
-					allowedDefList.AddRange (Building_SeasonalWardrobe.warmSeasonWraps);
-				}
+				// Season is currently cold, so allow storage of warm stuff
+				hats = Building_SeasonalWardrobe.warmSeasonHats;
+				wraps = Building_SeasonalWardrobe.warmSeasonWraps;
 			} else
 			{
-				// Spring & Summer
-				if (!HaveHat ())
-				{
-//					Log.Message (String.Format ("[{0}] Currently warm season and allowing cold weather hats", owner.Nickname));
-					allowedDefList.AddRange (Building_SeasonalWardrobe.coldSeasonHats);
-				}
-				if (!HaveWrap ())
-				{
-//					Log.Message (String.Format ("[{0}] Currently warm season and allowing cold weather wraps", owner.Nickname));
-					allowedDefList.AddRange (Building_SeasonalWardrobe.coldSeasonWraps);
-				}
+				// Season is currently warm, so allow storage of cold stuff
+				hats = Building_SeasonalWardrobe.coldSeasonHats;
+				wraps = Building_SeasonalWardrobe.coldSeasonWraps;
 			}
 
+			switch (process.CurrentState)
+			{
+			case AllowanceState.AllowAll:
+				allowedDefList.AddRange (hats);
+				allowedDefList.AddRange (wraps);
+				ChangeAllowances(allowedDefList);
+				break;
+			case AllowanceState.AllowHat:
+				allowedDefList.AddRange (hats);
+				ChangeAllowances(allowedDefList);
+				break;
+			case AllowanceState.AllowWrap:
+				allowedDefList.AddRange (wraps);
+				ChangeAllowances(allowedDefList);
+				break;
+			case AllowanceState.AllowNone:
+				ChangeAllowances(allowedDefList);
+				break;
+			case AllowanceState.WearAny:
+				break;
+			case AllowanceState.WearHat:
+				if (!HaveHat ())
+				{
+					process.MoveNext (Command.ChangeSeason);
+					UnforbidClothing ();
+					RunStateMachine ();
+				}
+				break;
+			case AllowanceState.WearWrap:
+				if (!HaveWrap ())
+				{
+					process.MoveNext (Command.ChangeSeason);
+					UnforbidClothing ();
+					RunStateMachine ();
+				}
+				break;
+			default:
+				Log.Error ("Invalid AllowanceState in Building_SeasonalWardrobe.process.");
+				break;
+			}
+		}
+
+
+		/// <summary>
+		/// Changes the allowances.
+		/// </summary>
+		/// <param name="thingDefs">Thing defs.</param>
+		void ChangeAllowances(List<ThingDef> thingDefs)
+		{
 			// Update allowances
 			settings.allowances.DisallowAll ();
-			foreach (var td in allowedDefList)
+			foreach (var td in thingDefs)
 			{
 //				Log.Message (String.Format ("[{0}] allowing in wardrobe: {1}", owner.Nickname, td.label));
 				settings.allowances.SetAllow (td, true);
 			}
 		}
+
 
 		/// <summary>
 		/// Unforbids the clothing if any is present.
@@ -483,18 +542,20 @@ namespace SeasonalWardrobe
 				currentSeasonApparel = Building_SeasonalWardrobe.warmSeasonAll;
 			}
 
-			if (storedHat != null)
+			if (HaveHat())
 			{
 				if (currentSeasonApparel.Contains (storedHat.def))
 				{
 					storedHat.SetForbidden (false);
+					process.MoveNext (Command.AddHat);
 				}
 			}
-			if (storedWrap != null)
+			if (HaveWrap())
 			{
 				if (currentSeasonApparel.Contains (storedWrap.def))
 				{
 					storedWrap.SetForbidden (false);
+					process.MoveNext (Command.AddWrap);
 				}
 			}
 		}
@@ -591,6 +652,67 @@ namespace SeasonalWardrobe
 //			Log.Message ("Assign Owner Wardrobe");
 			Find.LayerStack.Add (new Dialog_AssignWardrobeOwner (this));
 			return;
+		}
+
+		/// <summary>
+		/// Spawns the cold season apparel.
+		/// </summary>
+		void Debug_SpawnColdSeasonApparel()
+		{
+			Log.Message ("Debug_SpawnCold");
+
+			var thingDefs = new List<ThingDef> ();
+			thingDefs.Add(ThingDef.Named("Apparel_Parka"));
+			thingDefs.Add(ThingDef.Named("Apparel_Tuque"));
+			ThingDef stuffDef = ThingDef.Named("DevilstrandCloth");
+
+			Debug_SpawnApparel (thingDefs, stuffDef);
+		}
+
+		/// <summary>
+		/// Spawns the warm season apparel.
+		/// </summary>
+		void Debug_SpawnWarmSeasonApparel()
+		{
+			Log.Message ("Debug_SpawnCold");
+
+			var thingDefs = new List<ThingDef> ();
+			thingDefs.Add(ThingDef.Named("Apparel_Jacket"));
+			thingDefs.Add(ThingDef.Named("Apparel_CowboyHat"));
+			ThingDef stuffDef = ThingDef.Named("Cloth");
+
+			Debug_SpawnApparel (thingDefs, stuffDef);
+		}
+
+		void Debug_SpawnApparel(List<ThingDef> thingDefs, ThingDef stuffDef)
+		{
+			List<IntVec3> cells = AllSlotCells ().ToList ();
+			var thingsToDestroy = new List<Thing> ();
+
+			process = new Process ();
+
+			for (int i = 0; i < 2; i++)
+			{
+				// Destroy any existing items first -- this is a hack: assumes there is only one item as positon
+				IEnumerable<Thing> oldThings = Find.ListerThings.AllThings.Where (t => t.Position == cells [i]);
+				foreach (Thing t in oldThings)
+				{
+					if (t != this)
+					{
+						thingsToDestroy.Add(t);
+					}
+				}
+
+				foreach (Thing t in thingsToDestroy)
+				{
+					t.Destroy ();
+				}
+
+				// Spawn the new thing
+				Thing newThing = ThingMaker.MakeThing (thingDefs [i], stuffDef);
+				GenSpawn.Spawn (newThing, cells [i]).stackCount = 1;
+				Notify_ReceivedThing (newThing);
+			}
 		}
 	} // class Building_Wardrobe
 }

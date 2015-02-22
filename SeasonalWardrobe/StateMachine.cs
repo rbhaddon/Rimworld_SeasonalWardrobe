@@ -5,18 +5,25 @@ namespace SeasonalWardrobe
 {
 	public enum AllowanceState
 	{
+		Unowned,
 		AllowAll,
 		AllowHat,
 		AllowWrap,
-		AllowNone
+		AllowNone,
+		WearAny,
+		WearHat,
+		WearWrap
 	}
 
 	public enum Command
 	{
+		AddOwner,
+		RemoveOwner,
 		AddHat,
 		RemoveHat,
 		AddWrap,
-		RemoveWrap
+		RemoveWrap,
+		ChangeSeason
 	}
 
 	public class Process
@@ -52,14 +59,35 @@ namespace SeasonalWardrobe
 			CurrentState = AllowanceState.AllowAll;
 			transitions = new Dictionary<StateTransition, AllowanceState>
 			{
+				{ new StateTransition(AllowanceState.Unowned, Command.AddOwner), AllowanceState.AllowAll },
 				{ new StateTransition(AllowanceState.AllowAll, Command.AddHat), AllowanceState.AllowWrap },
 				{ new StateTransition(AllowanceState.AllowAll, Command.AddWrap), AllowanceState.AllowHat },
+				{ new StateTransition(AllowanceState.AllowAll, Command.ChangeSeason), AllowanceState.WearAny },
+				{ new StateTransition(AllowanceState.AllowAll, Command.RemoveOwner), AllowanceState.Unowned },
+				{ new StateTransition(AllowanceState.AllowAll, Command.RemoveHat), AllowanceState.AllowHat },
+				{ new StateTransition(AllowanceState.AllowAll, Command.RemoveWrap), AllowanceState.AllowWrap },
 				{ new StateTransition(AllowanceState.AllowHat, Command.AddHat), AllowanceState.AllowNone },
 				{ new StateTransition(AllowanceState.AllowHat, Command.RemoveWrap), AllowanceState.AllowAll },
+				{ new StateTransition(AllowanceState.AllowHat, Command.ChangeSeason), AllowanceState.WearAny },
+				{ new StateTransition(AllowanceState.AllowHat, Command.RemoveOwner), AllowanceState.Unowned },
 				{ new StateTransition(AllowanceState.AllowWrap, Command.AddWrap), AllowanceState.AllowNone },
 				{ new StateTransition(AllowanceState.AllowWrap, Command.RemoveHat), AllowanceState.AllowAll },
+				{ new StateTransition(AllowanceState.AllowWrap, Command.ChangeSeason), AllowanceState.WearAny },
+				{ new StateTransition(AllowanceState.AllowWrap, Command.RemoveOwner), AllowanceState.Unowned },
 				{ new StateTransition(AllowanceState.AllowNone, Command.RemoveHat), AllowanceState.AllowHat },
-				{ new StateTransition(AllowanceState.AllowNone, Command.RemoveWrap), AllowanceState.AllowWrap }
+				{ new StateTransition(AllowanceState.AllowNone, Command.RemoveWrap), AllowanceState.AllowWrap },
+				{ new StateTransition(AllowanceState.AllowNone, Command.ChangeSeason), AllowanceState.WearAny },
+				{ new StateTransition(AllowanceState.AllowNone, Command.RemoveOwner), AllowanceState.Unowned },
+				{ new StateTransition(AllowanceState.WearAny, Command.ChangeSeason), AllowanceState.AllowAll },
+				{ new StateTransition(AllowanceState.WearAny, Command.RemoveHat), AllowanceState.WearWrap },
+				{ new StateTransition(AllowanceState.WearAny, Command.RemoveWrap), AllowanceState.WearHat },
+				{ new StateTransition(AllowanceState.WearAny, Command.RemoveOwner), AllowanceState.Unowned },
+				{ new StateTransition(AllowanceState.WearHat, Command.RemoveHat), AllowanceState.AllowAll },
+				{ new StateTransition(AllowanceState.WearHat, Command.ChangeSeason), AllowanceState.AllowAll },
+				{ new StateTransition(AllowanceState.WearHat, Command.RemoveOwner), AllowanceState.Unowned },
+				{ new StateTransition(AllowanceState.WearWrap, Command.RemoveWrap), AllowanceState.AllowAll },
+				{ new StateTransition(AllowanceState.WearWrap, Command.ChangeSeason), AllowanceState.AllowAll },
+				{ new StateTransition(AllowanceState.WearWrap, Command.RemoveOwner), AllowanceState.Unowned }
 			};
 		}
 

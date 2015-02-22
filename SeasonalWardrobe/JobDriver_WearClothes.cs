@@ -46,7 +46,7 @@ namespace SeasonalWardrobe
 			{
 				if (clothing != null) // TODO this check is probably redundant with the next check
 				{
-					if (wardrobe.IsCorrectSeasonForApparel(clothing))
+					if (wardrobe.ShouldWearJobBeIssued(clothing))
 					{
 						yield return Toils_WearThing (pawn, clothing);
 					}
