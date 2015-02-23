@@ -1,14 +1,15 @@
-﻿// ----------------------------------------------------------------------
-// These are basic usings. Always let them be here.
-// ----------------------------------------------------------------------
+﻿// Seasonal Wardrobe mod for RimWorld
+// 
+// In Building_SeasonalWardrobe.SpawnSetup(), set func SeasonHasChanged() to either normal or test
+// Test mode fakes seasons changes every 24 game hours
+// Normal mode detects actual season changes from Summer --> Fall and Winter --> Spring.
+// 
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-// ----------------------------------------------------------------------
-// These are RimWorld-specific usings. Activate/Deactivate what you need:
-// ----------------------------------------------------------------------
 using UnityEngine;         // Always needed
 //using VerseBase;         // Material/Graphics handling functions are found here
 using Verse;               // RimWorld universal objects are here (like 'Building')
@@ -37,6 +38,8 @@ namespace SeasonalWardrobe
 		private static BodyPartRecord torsoParts = new BodyPartRecord ();
 		private static BodyPartRecord headParts = new BodyPartRecord();
 
+		private static List<Season> coldSeasons = new List<Season>();
+
 		// These are used to determine if a ThingDef is suitable cold weather apparel
 		const int HEAD_INSULATION_LIMIT = -10;
 		const int TORSO_INSULATION_LIMIT = -30;
@@ -48,7 +51,10 @@ namespace SeasonalWardrobe
 		private FSM_Process fsm_process;
 
 		// Indicates if current season is cold.  Used to determine correct storage allowances and wear jobs.
-		public bool ColdSeason;
+		public bool SeasonIsCold;
+
+		// TODO
+		private Season previousSeason = Season.Undefined;
 
 		// The two apparel Things we store in the wardrobe, one of each.
 		public Thing storedHat = null;
@@ -63,6 +69,7 @@ namespace SeasonalWardrobe
 		public static Texture2D resetWardrobeIcon;
 
 		// Debug stuff
+		public Func<bool> SeasonHasChanged;
 		public int dayTicks = 20000;
 		public int counter = 0;
 
@@ -81,6 +88,13 @@ namespace SeasonalWardrobe
 
 			// Build list of allowed apparel defs
 			Building_SeasonalWardrobe.CreateApparelLists ();
+
+			// Pick which seasons are "cold" seasons
+			coldSeasons.Add (Season.Fall);
+			coldSeasons.Add (Season.Winter);
+
+//			Log.Message(String.Format("SeasonalTemp is {0}", GenTemperature.SeasonalTemp));
+//			GenTemperature.AverageTemperatureAtWorldCoordsForMonth (worldCoords, Month);
 		}
 
 
@@ -88,9 +102,10 @@ namespace SeasonalWardrobe
 		{
 			base.ExposeData ();
 			Scribe_References.LookReference<Pawn> (ref owner, "owner");
-			Scribe_Values.LookValue<bool> (ref ColdSeason, "ColdSeason");
+			Scribe_Values.LookValue<bool> (ref SeasonIsCold, "SeasonIsCold");
 			Scribe_References.LookReference<Thing> (ref storedHat, "storedHat");
 			Scribe_References.LookReference<Thing> (ref storedWrap, "storedWrap");
+			Scribe_Values.LookValue<Season> (ref previousSeason, "previousSeason");
 		}
 
 
@@ -98,10 +113,11 @@ namespace SeasonalWardrobe
 		{
 			base.SpawnSetup ();
 
+			// Set the SeasonHasChanged func to normal mode or testing
+			SeasonHasChanged = Normal_SeasonHasChanged;
+
 			// Set the current season
-//			Season currentSeason = GenDate.CurrentSeason;
-//			ColdSeason = (currentSeason == Season.Fall || currentSeason == Season.Winter);
-			ColdSeason = (GenDate.DayOfMonth % 2 == 0);
+			SeasonHasChanged ();
 
 			// Start wardrobe's state machine
 			fsm_process = new FSM_Process ();
@@ -321,34 +337,22 @@ namespace SeasonalWardrobe
 		{
 			counter += tickerAmount;
 
-//			if (owner == null)
-//				return;
-
-			//Season currentSeason = GenDate.CurrentSeason;
-			int dayOfMonth = GenDate.DayOfMonth;
-			int hourOfDay = GenTime.HourInt;
-			//if (currentSeason == Season.Fall && dayOfMonth == 1) // First day of fall
-			//if (dayOfMonth % 2 == 0) {
-			//Log.Message("Odd Day");
-
+			// Check once per day if season has changed and issue jobs if so
 			if (counter >= dayTicks)
 			{
 				counter = 0;
-				ColdSeason = !ColdSeason;
-				if (owner != null)
-					Log.Warning (String.Format ("[{0}] Is cold season? {1}", owner.Nickname, ColdSeason));
-//				process.MoveNext (Command.ChangeSeason);
-				InspectStateMachine ();
+				if (SeasonHasChanged ())
+				{
+//					Log.Warning ("Seasons changed; it is now cold: " + SeasonIsCold);
+					InspectStateMachine ();
 
-				if (HaveWrap () || HaveHat ())
-				{	
-					if (owner == null)
-					{
-//						process.MoveNext (Command.ChangeSeason);
-					} else
-					{
-						Log.Message (string.Format ("[{0}] Issuing wear job.", owner.Nickname));
-						IssueWearJob ();
+					if (HaveWrap () || HaveHat ())
+					{	
+						if (owner != null)
+						{
+//							Log.Message (string.Format ("[{0}] Issuing wear job.", owner.Nickname));
+							IssueWearJob ();
+						}
 					}
 				}
 			}
@@ -384,6 +388,50 @@ namespace SeasonalWardrobe
 			}
 			owner = newOwner;
 		}
+
+
+		/// <summary>
+		/// Checks if the current season has changed since the last check.
+		/// </summary>
+		/// <returns><c>true</c>, if has changed was seasoned, <c>false</c> otherwise.</returns>
+		bool Normal_SeasonHasChanged()
+		{
+
+			Season currentSeason = GenDate.CurrentSeason;
+			SeasonIsCold = (coldSeasons.Contains (currentSeason));
+
+			if (currentSeason != previousSeason)
+			{
+				previousSeason = currentSeason;
+				return true;
+			}
+			return false;
+		}
+
+
+		/// <summary>
+		/// Checks if the current season has changed since the last check.  Testing version.
+		/// </summary>
+		/// <returns><c>true</c>, on even numbered days <c>false</c> otherwise.</returns>
+		bool Test_SeasonHasChanged()
+		{
+			SeasonIsCold = (GenDate.DayOfMonth % 2 == 0);
+
+			Season currentSeason = GenDate.CurrentSeason;
+			if (currentSeason != previousSeason)
+			{
+				if (SeasonIsCold)
+				{
+					previousSeason = Season.Summer;
+				} else
+				{
+					previousSeason = Season.Winter;
+				}
+				return true;
+			}
+			return false;
+		}
+
 
 		/// <summary>
 		/// Does the wardrobe hold a wrap (torso shell-layer apparel)?
@@ -423,11 +471,17 @@ namespace SeasonalWardrobe
 			{
 				if (IsOverHead(wornApparel.def) || IsTorsoShell(wornApparel.def))
 				{
-					Log.Message (String.Format("{0} is already wearing a similar item to {1}.", owner.Nickname, storedApparel.Label));
+//					Log.Message (String.Format("{0} is already wearing a similar item to {1}.", owner.Nickname, storedApparel.Label));
 					alreadyWorn = true;
 				}
 			}
 			return !alreadyWorn;
+		}
+
+
+		public bool ShouldWornApparelBeRemoved(Apparel clothing)
+		{
+			return (coldSeasonAll.Contains (clothing.def) && !SeasonIsCold);
 		}
 			
 
@@ -439,7 +493,7 @@ namespace SeasonalWardrobe
 		public bool IsCorrectSeasonForApparel(Thing apparelThing)
 		{
 			bool retval;
-			if (ColdSeason)
+			if (SeasonIsCold)
 			{
 				retval = coldSeasonAll.Contains (apparelThing.def);
 			} else
@@ -456,19 +510,19 @@ namespace SeasonalWardrobe
 		/// </summary>
 		void InspectStateMachine()
 		{
-			if (owner != null)
-			{
-				Log.Message (String.Format ("[{0}] Current state: {1}", owner.Nickname, fsm_process.CurrentState));
-			} else
-			{
-				Log.Message ("[Unowned] Current state: " + fsm_process.CurrentState);
-			}
+//			if (owner != null)
+//			{
+//				Log.Message (String.Format ("[{0}] Current state: {1}", owner.Nickname, fsm_process.CurrentState));
+//			} else
+//			{
+//				Log.Message ("[Unowned] Current state: " + fsm_process.CurrentState);
+//			}
 			
 			var allowedDefList = new List<ThingDef> ();
 			List<ThingDef> hats;
 			List<ThingDef> wraps;
 
-			if (ColdSeason)
+			if (SeasonIsCold)
 			{
 				// Season is currently cold, so allow storage of warm stuff
 				hats = Building_SeasonalWardrobe.warmSeasonHats;
@@ -543,7 +597,7 @@ namespace SeasonalWardrobe
 			// Conditionally unforbid clothing as long as the stored clothing should not be stored in the current season
 			List<ThingDef> currentSeasonApparel;
 
-			if (ColdSeason)
+			if (SeasonIsCold)
 			{
 				currentSeasonApparel = Building_SeasonalWardrobe.coldSeasonAll;
 			} else
@@ -623,7 +677,7 @@ namespace SeasonalWardrobe
 		/// </summary>
 		/// <returns><c>true</c> if is over head the specified thingDef; otherwise, <c>false</c>.</returns>
 		/// <param name="thingDef">Thing def.</param>
-		static bool IsOverHead(ThingDef thingDef)
+		public static bool IsOverHead(ThingDef thingDef)
 		{
 			if (!thingDef.IsApparel)
 			{
@@ -641,7 +695,7 @@ namespace SeasonalWardrobe
 		/// </summary>
 		/// <returns><c>true</c> if is torso shell the specified thingDef; otherwise, <c>false</c>.</returns>
 		/// <param name="thingDef">Thing def.</param>
-		static bool IsTorsoShell(ThingDef thingDef)
+		public static bool IsTorsoShell(ThingDef thingDef)
 		{
 			if (!thingDef.IsApparel)
 			{
@@ -681,8 +735,6 @@ namespace SeasonalWardrobe
 		/// </summary>
 		void Debug_SpawnColdSeasonApparel()
 		{
-			Log.Message ("Debug_SpawnCold");
-
 			var thingDefs = new List<ThingDef> ();
 			thingDefs.Add(ThingDef.Named("Apparel_Parka"));
 			thingDefs.Add(ThingDef.Named("Apparel_Tuque"));
@@ -696,8 +748,6 @@ namespace SeasonalWardrobe
 		/// </summary>
 		void Debug_SpawnWarmSeasonApparel()
 		{
-			Log.Message ("Debug_SpawnCold");
-
 			var thingDefs = new List<ThingDef> ();
 			thingDefs.Add(ThingDef.Named("Apparel_Jacket"));
 			thingDefs.Add(ThingDef.Named("Apparel_CowboyHat"));

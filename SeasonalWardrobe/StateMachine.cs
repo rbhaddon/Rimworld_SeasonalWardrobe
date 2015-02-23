@@ -1,4 +1,8 @@
-﻿using System;
+﻿/// <summary>
+/// Nifty state machine copied from a StackExchange post on C# FSMs.
+/// </summary>
+
+using System;
 using System.Collections.Generic;
 
 namespace SeasonalWardrobe
