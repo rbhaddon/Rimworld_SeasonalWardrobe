@@ -50,9 +50,6 @@ namespace SeasonalWardrobe
 		// Wardrobe allowances are implemented as a finite state machine
 		private FSM_Process fsm_process;
 
-		// Indicates if current season is cold.  Used to determine correct storage allowances and wear jobs.
-		public bool SeasonIsCold;
-
 		// TODO
 		private Season previousSeason = Season.Undefined;
 
@@ -68,10 +65,32 @@ namespace SeasonalWardrobe
 		public static Texture2D assignRoomOwnerIcon;
 		public static Texture2D resetWardrobeIcon;
 
-		// Debug stuff
-		public Func<bool> SeasonHasChanged;
+		// Tick-related vars; used to fire ticker work once per 24 hr game period
 		public int dayTicks = 20000;
 		public int counter = 0;
+
+		// Testing helper because seasons last too long for good testing efficiency
+		public Func<bool> SeasonHasChanged;
+	 	bool TESTING_MODE = true;
+
+		// Indicates if current season is cold.  Used to determine correct storage allowances and wear jobs.
+		bool _seasonIsCold;
+		public bool SeasonIsCold
+		{
+			get {
+				if (TESTING_MODE)
+				{
+					_seasonIsCold = (GenDate.DayOfMonth % 2 == 0);
+				} else
+				{
+					_seasonIsCold = coldSeasons.Contains (GenDate.CurrentSeason);
+				}
+				return _seasonIsCold;
+			}
+			set {
+				_seasonIsCold = value;
+			}
+		}
 
 		static Building_SeasonalWardrobe ()
 		{
@@ -102,7 +121,7 @@ namespace SeasonalWardrobe
 		{
 			base.ExposeData ();
 			Scribe_References.LookReference<Pawn> (ref owner, "owner");
-			Scribe_Values.LookValue<bool> (ref SeasonIsCold, "SeasonIsCold");
+			Scribe_Values.LookValue<bool> (ref _seasonIsCold, "_seasonIsCold");
 			Scribe_References.LookReference<Thing> (ref storedHat, "storedHat");
 			Scribe_References.LookReference<Thing> (ref storedWrap, "storedWrap");
 			Scribe_Values.LookValue<Season> (ref previousSeason, "previousSeason");
@@ -114,7 +133,13 @@ namespace SeasonalWardrobe
 			base.SpawnSetup ();
 
 			// Set the SeasonHasChanged func to normal mode or testing
-			SeasonHasChanged = Normal_SeasonHasChanged;
+			if (TESTING_MODE)
+			{
+				SeasonHasChanged = Test_SeasonHasChanged;
+			} else
+			{
+				SeasonHasChanged = Normal_SeasonHasChanged;
+			}
 
 			// Set the current season
 			SeasonHasChanged ();
@@ -189,15 +214,23 @@ namespace SeasonalWardrobe
 			else {
 				stringBuilder.Append (owner.LabelCap);
 			}
+			stringBuilder.AppendLine ();
+			if (SeasonIsCold)
+			{
+				stringBuilder.Append ("Requesting: Warm weather apparel");
+			} else
+			{
+				stringBuilder.Append ("Requesting: Cold weather apparel");
+			}
 			if (HaveHat ())
 			{
 				stringBuilder.AppendLine ();
-				stringBuilder.Append ("\tHat: " + storedHat.Label);
+				stringBuilder.Append ("Hat: " + storedHat.Label);
 			}
 			if (HaveWrap ())
 			{
 				stringBuilder.AppendLine ();
-				stringBuilder.Append ("\tTorso: " + storedWrap.Label);
+				stringBuilder.Append ("Torso: " + storedWrap.Label);
 			}
 			return stringBuilder.ToString ();
 		}
@@ -396,16 +429,20 @@ namespace SeasonalWardrobe
 		/// <returns><c>true</c>, if has changed was seasoned, <c>false</c> otherwise.</returns>
 		bool Normal_SeasonHasChanged()
 		{
+			// TODO this method is poorly named.  It's not so much a season change indicator as it is a
+			// bi-annual cold to warm weather season checkinator.
 
-			Season currentSeason = GenDate.CurrentSeason;
-			SeasonIsCold = (coldSeasons.Contains (currentSeason));
+			bool retval;
+			var currentSeason = GenDate.CurrentSeason;
+
+			retval = coldSeasons.Contains (previousSeason) && !coldSeasons.Contains (currentSeason);
 
 			if (currentSeason != previousSeason)
 			{
 				previousSeason = currentSeason;
-				return true;
 			}
-			return false;
+				
+			return retval;
 		}
 
 
@@ -415,17 +452,23 @@ namespace SeasonalWardrobe
 		/// <returns><c>true</c>, on even numbered days <c>false</c> otherwise.</returns>
 		bool Test_SeasonHasChanged()
 		{
-			SeasonIsCold = (GenDate.DayOfMonth % 2 == 0);
-
 			Season currentSeason = GenDate.CurrentSeason;
+
 			if (currentSeason != previousSeason)
 			{
+				// this is some hacky shit, just for testing
 				if (SeasonIsCold)
 				{
-					previousSeason = Season.Summer;
+					if (currentSeason == Season.Winter)
+						previousSeason = Season.Fall;
+					else
+						previousSeason = Season.Summer;
 				} else
 				{
-					previousSeason = Season.Winter;
+					if (currentSeason == Season.Summer)
+						previousSeason = Season.Spring;
+					else
+						previousSeason = Season.Winter;
 				}
 				return true;
 			}
@@ -498,7 +541,7 @@ namespace SeasonalWardrobe
 				retval = coldSeasonAll.Contains (apparelThing.def);
 			} else
 			{
-				retval = warmSeasonAll.Contains(apparelThing.def);
+				retval = warmSeasonAll.Contains (apparelThing.def);
 			}
 			return retval;
 		}
