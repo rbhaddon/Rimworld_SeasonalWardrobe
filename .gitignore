@@ -1,6 +1,6 @@
 # Mono project generated files
-obj/*
-bin/*
+*/obj/
+*/bin/
 *.dll
 
 # Windows image file caches
@@ -43,5 +43,3 @@ Icon
 
 # Win Vim Backups
 *~
-
-
