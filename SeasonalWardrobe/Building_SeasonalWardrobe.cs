@@ -71,7 +71,7 @@ namespace SeasonalWardrobe
 
 		// Testing helper because seasons last too long for good testing efficiency
 		public Func<bool> SeasonHasChanged;
-	 	bool TESTING_MODE = true;
+		bool TESTING_MODE = false;
 
 		// Indicates if current season is cold.  Used to determine correct storage allowances and wear jobs.
 		bool _seasonIsCold;
@@ -268,23 +268,24 @@ namespace SeasonalWardrobe
 			resetButton.groupKey = groupKeyBase + 3;
 			gizmoList.Add(resetButton);
 
-			Command_Action debugColdButton = new Command_Action();
-//			debugColdButton.icon = assignRoomOwnerIcon;
-			debugColdButton.defaultDesc = "Spawn cold weather clothing in wardrobe.";
-			debugColdButton.defaultLabel = "Debug Cold";
-			debugColdButton.activateSound = SoundDef.Named("Click");
-			debugColdButton.action = new Action(Debug_SpawnColdSeasonApparel);
-			debugColdButton.groupKey = groupKeyBase + 4;
-			gizmoList.Add(debugColdButton);
+			if (TESTING_MODE)
+			{
+				Command_Action debugColdButton = new Command_Action ();
+				debugColdButton.defaultDesc = "Spawn cold weather clothing in wardrobe.";
+				debugColdButton.defaultLabel = "Debug Cold";
+				debugColdButton.activateSound = SoundDef.Named ("Click");
+				debugColdButton.action = new Action (Debug_SpawnColdSeasonApparel);
+				debugColdButton.groupKey = groupKeyBase + 4;
+				gizmoList.Add (debugColdButton);
 
-			Command_Action debugWarmButton = new Command_Action();
-//			debugWarmButton.icon = assignRoomOwnerIcon;
-			debugWarmButton.defaultDesc = "Spawn warm weather clothing in wardrobe.";
-			debugWarmButton.defaultLabel = "Debug Warm";
-			debugWarmButton.activateSound = SoundDef.Named("Click");
-			debugWarmButton.action = new Action(Debug_SpawnWarmSeasonApparel);
-			debugWarmButton.groupKey = groupKeyBase + 5;
-			gizmoList.Add(debugWarmButton);
+				Command_Action debugWarmButton = new Command_Action ();
+				debugWarmButton.defaultDesc = "Spawn warm weather clothing in wardrobe.";
+				debugWarmButton.defaultLabel = "Debug Warm";
+				debugWarmButton.activateSound = SoundDef.Named ("Click");
+				debugWarmButton.action = new Action (Debug_SpawnWarmSeasonApparel);
+				debugWarmButton.groupKey = groupKeyBase + 5;
+				gizmoList.Add (debugWarmButton);
+			}
 
 			IEnumerable<Gizmo> resultGizmoList;
 			IEnumerable<Gizmo> baseGizmoList = base.GetGizmos();

@@ -28,6 +28,8 @@ Global
 		$2.inheritsSet = Mono
 		$2.inheritsScope = text/x-csharp
 		$2.scope = text/x-csharp
+		description = Initial release for RimWorld Alpha 9
+		version = 1.0-9
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

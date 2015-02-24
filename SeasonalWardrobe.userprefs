@@ -1,8 +1,8 @@
-﻿<Properties StartupItem="SeasonalWardrobe/SeasonalWardrobe.csproj" GitUserInfo="UsingGIT">
+﻿<Properties StartupItem="SeasonalWardrobe\SeasonalWardrobe.csproj" GitUserInfo="UsingGIT">
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Release" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="SeasonalWardrobe/Building_SeasonalWardrobe.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="SeasonalWardrobe\Building_SeasonalWardrobe.cs">
     <Files>
-      <File FileName="SeasonalWardrobe/Building_SeasonalWardrobe.cs" Line="1" Column="1" />
+      <File FileName="SeasonalWardrobe\Building_SeasonalWardrobe.cs" Line="4" Column="4" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
