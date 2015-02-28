@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 
 using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace SeasonalWardrobe
+namespace SmartStorage
 {
 	/// <summary>
 	/// Seasonal wardrobe job giver wear clothes.
@@ -21,8 +22,8 @@ namespace SeasonalWardrobe
 		public JobDriver_WearClothes(Pawn pawn) : base(pawn)
 		{
 			wardrobe = (Building_SeasonalWardrobe)TargetThingA;
-			storedHat = wardrobe.storedHat;
-			storedWrap = wardrobe.storedWrap;
+			storedHat = wardrobe.storedHead;
+			storedWrap = wardrobe.storedTorso;
 		}
 
 		protected override IEnumerable<Toil> MakeNewToils()
@@ -46,12 +47,11 @@ namespace SeasonalWardrobe
 //				{storedWrap, Building_SeasonalWardrobe.IsTorsoShell}
 //			};
 
-			var clothing = new List<Thing> ();
-			var checkers = new List<Func<ThingDef, bool>> ();
-			clothing.Add (storedHat);
-			checkers.Add (Building_SeasonalWardrobe.IsOverHead);
-			clothing.Add (storedWrap);
-			checkers.Add (Building_SeasonalWardrobe.IsTorsoShell);
+			var clothing = new List<Thing> () {storedHat, storedWrap};
+			var checkers = new List<Func<ThingDef, bool>> () {
+				Building_SeasonalWardrobe.IsOverHead,
+				Building_SeasonalWardrobe.IsTorsoShell
+			};
 
 			for (int idx = 0; idx < clothing.Count; idx++)
 			{
@@ -75,48 +75,8 @@ namespace SeasonalWardrobe
 						}
 					}
 				}
-//				if (storedHat != null)
-//				{
-//					// Put on stored wrap if the season is right for it
-//					if (wardrobe.ShouldWearJobBeIssued (storedHat))
-//					{
-//						yield return Toils_WearApparel (pawn, storedHat);
-//					}
-//				} else
-//				{
-//					// Nothing to put on, but does pawn have something to take off (i.e. warm clothing in warm season)?
-//					Apparel wornHat = Helper.GetMatchingWornApparel (pawn, Building_SeasonalWardrobe.IsOverHead);
-//					if (wornHat != null)
-//					{
-//						if (wardrobe.ShouldWornApparelBeRemoved (wornHat))
-//						{
-//							Log.Message (String.Format ("{0} should remove {1}", pawn.Nickname, wornHat.Label));
-//							yield return Toils_RemoveApparel (pawn, wornHat);
-//						}
-//					}
-//				}
 			}
 		}
-
-
-//			foreach (Thing clothing in clothes)
-//			{
-//				if (clothing != null)
-//				{
-//					if (wardrobe.ShouldWearJobBeIssued (clothing))
-//					{
-//						yield return Toils_WearApparel (pawn, clothing);
-//					}
-//				}
-//				else
-//				{
-//					if (wardrobe.ShouldWornApparelBeRemoved (clothing.def))
-//					{
-//						yield return Toils_RemoveApparel (pawn, Building_SeasonalWardrobe.IsTorsoShell());
-//					}
-//				}
-//			}
-
 
 		private Toil Toils_WearApparel(Pawn owner, Thing clothing)
 		{
@@ -148,4 +108,101 @@ namespace SeasonalWardrobe
 			return toil;
 		}
 	}
+
+	/// <summary>
+	/// Seasonal wardrobe job giver wear clothes.
+	/// </summary>
+	public class JobDriver_WearArmor: JobDriver
+	{
+		// Constants
+		private const TargetIndex WardrobeIdx = TargetIndex.A;
+		private Thing storedHat = null;
+		private Thing storedWrap = null;
+		private readonly Building_SmartArmorRack wardrobe;
+
+		public JobDriver_WearArmor(Pawn pawn) : base(pawn)
+		{
+			wardrobe = (Building_SmartArmorRack)TargetThingA;
+			storedHat = wardrobe.storedHead;
+			storedWrap = wardrobe.storedTorso;
+		}
+
+		protected override IEnumerable<Toil> MakeNewToils()
+		{
+			//			Log.Message (String.Format ("{0} received WearClothes job.", pawn));
+
+			// Set fail conditions
+			this.FailOnBurningImmobile (WardrobeIdx);
+
+			// Toil: Goto Wardrobe first so that apparel is not 'magically' worn below
+			Toil toilGoto = null;
+			toilGoto = Toils_Goto.GotoThing (WardrobeIdx, PathMode.ClosestTouch);
+			yield return toilGoto;
+
+			// Toil: Wear clothes -- but only if they are correct for the current season
+
+			// key can't be null; makes dictionary poor choice
+			//			Dictionary<Thing, Func<ThingDef, bool>> dictionary = new Dictionary<Thing, Func<ThingDef, bool>> ()
+			//			{
+			//				{storedHat, Building_SeasonalWardrobe.IsOverHead},
+			//				{storedWrap, Building_SeasonalWardrobe.IsTorsoShell}
+			//			};
+
+			var clothing = new List<Thing> () {storedHat, storedWrap};
+
+			if (clothing.Any())
+			{
+				yield return Toils_WearApparel (clothing);
+			}
+		}
+
+
+		private Toil Toils_WearApparel(List<Thing> clothing)
+		{
+			Toil toil = new Toil ();
+			var previousApparel = pawn.apparel.WornApparel.ToList();
+			List<Thing> droppedApparel;
+
+			toil.initAction = () => {
+				toil.actor.pather.StopDead ();
+				foreach (Thing t in clothing)
+				{
+					toil.actor.apparel.Wear((Apparel)t, true);
+				}
+					
+				droppedApparel = Helper.DroppedClothing(pawn, previousApparel);
+				if (droppedApparel.Any())
+				{
+					Helper.AddThingsToStorage(wardrobe, droppedApparel);
+				}
+			};
+
+			toil.defaultCompleteMode = ToilCompleteMode.Instant;
+
+			return toil;
+		}
+
+		private Toil Toils_HaulDroppedApparel()
+		{
+			Toil toil = new Toil ();
+			return toil;
+		}
+
+
+		private Toil Toils_RemoveApparel(Apparel clothing)
+		{
+			Toil toil = new Toil ();
+
+			Apparel droppedClothing;
+
+			toil.initAction = () => {
+				toil.actor.pather.StopDead ();
+				toil.actor.apparel.TryDrop(clothing, out droppedClothing, wardrobe.Position, false);
+			};
+
+			toil.defaultCompleteMode = ToilCompleteMode.Instant;
+			return toil;
+		}
+	}
+
 }

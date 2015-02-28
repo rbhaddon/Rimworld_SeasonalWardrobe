@@ -1,0 +1,16 @@
+﻿<Properties StartupItem="SeasonalWardrobe\SmartStorage.csproj" GitUserInfo="UsingGIT">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Release" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="SeasonalWardrobe\Building_SmartStorage.cs">
+    <Files>
+      <File FileName="SeasonalWardrobe\Building_SeasonalWardrobe.cs" Line="46" Column="46" />
+      <File FileName="SeasonalWardrobe\Building_SmartArmorRack.cs" Line="4" Column="4" />
+      <File FileName="SeasonalWardrobe\JobDriver_WearClothes.cs" Line="57" Column="57" />
+      <File FileName="SeasonalWardrobe\Helper.cs" Line="2" Column="2" />
+      <File FileName="SeasonalWardrobe\Building_SmartStorage.cs" Line="71" Column="71" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>

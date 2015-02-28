@@ -20,7 +20,7 @@ using RimWorld;            // RimWorld specific functions are found here (like '
 //using RimWorld.Planet;   // RimWorld specific functions for world creation
 //using RimWorld.SquadAI;  // RimWorld specific functions for squad brains 
 
-namespace SeasonalWardrobe
+namespace SmartStorage
 {
 	public struct ArmorStats
 	{
@@ -33,12 +33,14 @@ namespace SeasonalWardrobe
 		}
 	}
 
-	public class Building_SmartArmorRack : Building_Storage
+	public class Building_SmartArmorRack : Building_HeadAndTorsoStorage
 	{
+		public const int NUM_SLOTS = 2;
+
 		// Lists of apparel to wear during cold seasons
-		private static List<ThingDef> armorTorso = new List<ThingDef> ();
-		private static List<ThingDef> armorHead = new List<ThingDef> ();
-		private static List<ThingDef> armorAll = new List<ThingDef> ();
+		private static List<ThingDef> allowedTorsoDefs = new List<ThingDef> ();
+		private static List<ThingDef> allowedHeadDefs = new List<ThingDef> ();
+		private static List<ThingDef> allowedAllDefs = new List<ThingDef> ();
 
 		// These records enable us to split our allowances into the above lists
 		private static BodyPartRecord torsoParts = new BodyPartRecord ();
@@ -56,12 +58,14 @@ namespace SeasonalWardrobe
 		// Wardrobe allowances are implemented as a finite state machine
 		private FSM_Process fsm_process;
 
-		// The two apparel Things we store in the wardrobe, one of each.
-		public Thing storedHead = null;
-		public Thing storedTorso = null;
+
+
+		// Danger Rates
+		public StoryDanger currentDangerRate = StoryDanger.None;
+		public StoryDanger previousDangerRate = StoryDanger.None;
 
 		// JobDefs
-//		private const String JobDef_wearClothes = "WearClothesInWardrobe";
+		private const String JobDef_wearArmor = "WearArmorInRack";
 
 		// Textures
 		public static Texture2D assignOwnerIcon;
@@ -69,7 +73,7 @@ namespace SeasonalWardrobe
 		public static Texture2D resetWardrobeIcon;
 
 		// Tick-related vars; used to fire ticker work once per 24 hr game period
-		public int dayTicks = 20000;
+		public int dayTicks = 24000;
 		public int counter = 0;
 
 		// Testing
@@ -186,6 +190,13 @@ namespace SeasonalWardrobe
 				stringBuilder.AppendLine ();
 				stringBuilder.Append ("Armor: " + storedTorso.Label);
 			}
+			if (TESTING_MODE)
+			{
+				stringBuilder.AppendLine ();
+				stringBuilder.Append ("CurrentState: " + fsm_process.CurrentState);
+				stringBuilder.AppendLine ();
+				stringBuilder.Append ("CurrentDanger: " + currentDangerRate);
+			}
 			return stringBuilder.ToString ();
 		}
 
@@ -299,18 +310,17 @@ namespace SeasonalWardrobe
 		// ===================== Ticker =====================
 
 		/// <summary>
-		/// This is used, when the Ticker in the XML is set to 'Rare'
-		/// This is a tick thats done once every 250 normal Ticks
+		/// This is the normal ticker
 		/// </summary>
-		public override void TickRare()
+		public override void Tick()
 		{
 			//if (destroyedFlag) // Do nothing further, when destroyed (just a safety)
 			//	return;
 
-			base.TickRare();
+			base.Tick();
 
 			// Call work function
-			DoTickerWork(250);
+			DoTickerWork(1);
 		}
 
 		/// <summary>
@@ -326,24 +336,41 @@ namespace SeasonalWardrobe
 			counter += tickerAmount;
 
 			// Check once per day if season has changed and issue jobs if so
-			if (counter >= dayTicks)
+			if (counter % 60 == 0)
 			{
 				counter = 0;
 
-//				Log.Warning ("Seasons changed; it is now cold: " + SeasonIsCold);
-				InspectStateMachine ();
-
-				if (HaveTorsoArmor () || HaveHeadArmor ())
-				{	
-					if (owner != null)
+				currentDangerRate = Find.StoryWatcher.watcherDanger.DangerRating;
+				if (currentDangerRate != previousDangerRate)
+				{
+					previousDangerRate = currentDangerRate;
+					if (currentDangerRate != StoryDanger.None)
 					{
-						Log.Message (string.Format ("[{0}] Issuing wear job.", owner.Nickname));
-//						IssueWearJob ();
+						InspectStateMachine ();
+						if (HaveTorsoArmor () || HaveHeadArmor ())
+						{	
+							if (owner != null)
+							{
+								Log.Message (string.Format ("[{0}] Issuing wear job.", owner.Nickname));
+								IssueWearJob ();
+							}
+						}
 					}
 				}
 			}
 		}
 			
+		/// <summary>
+		/// Determines if issue wear job the specified pawn article.
+		/// </summary>
+		/// <returns><c>true</c> if issue wear job the specified pawn article; otherwise, <c>false</c>.</returns>
+		void IssueWearJob()
+		{
+			var jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_wearArmor), this);
+
+			owner.playerController.TakeOrderedJob (jobWear);
+		}
+
 
 		/// <summary>
 		/// Assigns the room owner.
@@ -406,16 +433,16 @@ namespace SeasonalWardrobe
 			switch (fsm_process.CurrentState)
 			{
 			case AllowanceState.AllowAll:
-				allowedDefList.AddRange (armorHead);
-				allowedDefList.AddRange (armorTorso);
+				allowedDefList.AddRange (allowedHeadDefs);
+				allowedDefList.AddRange (allowedTorsoDefs);
 				ChangeAllowances(allowedDefList);
 				break;
 			case AllowanceState.AllowHat:
-				allowedDefList.AddRange (armorHead);
+				allowedDefList.AddRange (allowedHeadDefs);
 				ChangeAllowances(allowedDefList);
 				break;
 			case AllowanceState.AllowWrap:
-				allowedDefList.AddRange (armorTorso);
+				allowedDefList.AddRange (allowedTorsoDefs);
 				ChangeAllowances(allowedDefList);
 				break;
 			case AllowanceState.AllowNone:
@@ -477,32 +504,28 @@ namespace SeasonalWardrobe
 				{
 					double ArmorRating_Blunt = (double)thingDef.statBases.GetStatValueFromList (StatDefOf.ArmorRating_Blunt, (float)0.0);
 					double ArmorRating_Sharp = (double)thingDef.statBases.GetStatValueFromList (StatDefOf.ArmorRating_Sharp, (float)0.0);
-					Log.Message(String.Format("{0} stat: ArmorRating_Blunt = {1}", thingDef.label, ArmorRating_Blunt));
-					Log.Message(String.Format("{0} stat: ArmorRating_Sharp = {1}", thingDef.label, ArmorRating_Sharp));
+//					Log.Message(String.Format("{0} stat: ArmorRating_Blunt = {1}", thingDef.label, ArmorRating_Blunt));
+//					Log.Message(String.Format("{0} stat: ArmorRating_Sharp = {1}", thingDef.label, ArmorRating_Sharp));
 
 					if (IsOverHead(thingDef))
 					{
 						if (ArmorRating_Blunt >= HeadStats.blunt && ArmorRating_Sharp >= HeadStats.sharp)
 						{
-							Log.Message (String.Format ("Adding {0} to armorHead list.", thingDef.label));
-							Building_SmartArmorRack.armorHead.Add (thingDef);
+//							Log.Message (String.Format ("Adding {0} to armorHead list.", thingDef.label));
+							Building_SmartArmorRack.allowedHeadDefs.Add (thingDef);
 						}
 					} else if (IsTorsoShell(thingDef))
 					{
 						if (ArmorRating_Blunt >= TorsoStats.blunt && ArmorRating_Sharp >= TorsoStats.sharp)
 						{
-							Log.Message (String.Format ("Adding {0} to armorTorso list.", thingDef.label));
-							Building_SmartArmorRack.armorTorso.Add (thingDef);
+//							Log.Message (String.Format ("Adding {0} to armorTorso list.", thingDef.label));
+							Building_SmartArmorRack.allowedTorsoDefs.Add (thingDef);
 						}
 					}
-					Building_SmartArmorRack.armorAll.AddRange (Building_SmartArmorRack.armorHead);
-					Building_SmartArmorRack.armorAll.AddRange (Building_SmartArmorRack.armorTorso);
+					Building_SmartArmorRack.allowedAllDefs.AddRange (Building_SmartArmorRack.allowedHeadDefs);
+					Building_SmartArmorRack.allowedAllDefs.AddRange (Building_SmartArmorRack.allowedTorsoDefs);
 				}
 			}
-//			Log.Message (String.Format ("coldSeasonHats contains {0} ThingDefs", Building_SeasonalWardrobe.coldSeasonHats.Count));
-//			Log.Message (String.Format ("coldSeasonWraps contains {0} ThingDefs", Building_SeasonalWardrobe.coldSeasonWraps.Count));
-//			Log.Message (String.Format ("warmSeasonHats contains {0} ThingDefs", Building_SeasonalWardrobe.warmSeasonHats.Count));
-//			Log.Message (String.Format ("warmSeasonWraps contains {0} ThingDefs", Building_SeasonalWardrobe.warmSeasonWraps.Count));
 		}
 
 		/// <summary>
@@ -581,38 +604,35 @@ namespace SeasonalWardrobe
 		/// </summary>
 		void Debug_DestroyArmor()
 		{
-			var thingDefs = new List<ThingDef> ();
-			thingDefs.Add(ThingDef.Named("Apparel_Jacket"));
-			thingDefs.Add(ThingDef.Named("Apparel_CowboyHat"));
-			ThingDef stuffDef = ThingDef.Named("Cloth");
-
-			Debug_SpawnApparel (thingDefs, stuffDef);
-		}
-
-		void Debug_SpawnApparel(List<ThingDef> thingDefs, ThingDef stuffDef)
-		{
-			List<IntVec3> cells = AllSlotCells ().ToList ();
 			var thingsToDestroy = new List<Thing> ();
 
-			fsm_process = new FSM_Process ();
-
-			for (int i = 0; i < 2; i++)
+			foreach (IntVec3 cell in AllSlotCellsList())
 			{
-				// Destroy any existing items first -- this is a hack: assumes there is only one item as positon
-				IEnumerable<Thing> oldThings = Find.ListerThings.AllThings.Where (t => t.Position == cells [i]);
+				IEnumerable<Thing> oldThings = Find.ListerThings.AllThings.Where (t => t.Position == cell);
 				foreach (Thing t in oldThings)
 				{
 					if (t != this)
 					{
-						thingsToDestroy.Add(t);
+						thingsToDestroy.Add (t);
 					}
 				}
+			}
 
-				foreach (Thing t in thingsToDestroy)
-				{
-					t.Destroy ();
-				}
+			foreach (Thing t in thingsToDestroy)
+			{
+				Log.Message (String.Format ("Destroying {0}", t));
+				Notify_LostThing (t);
+				t.Destroy ();
+			}
+		}
 
+		void Debug_SpawnApparel(List<ThingDef> thingDefs, ThingDef stuffDef)
+		{
+			List<IntVec3> cells = AllSlotCellsList ();
+			fsm_process = new FSM_Process ();
+		
+			for (int i = 0; i < Building_SmartArmorRack.NUM_SLOTS; i++)
+			{
 				// Spawn the new thing
 				Thing newThing;
 				if (stuffDef == null)

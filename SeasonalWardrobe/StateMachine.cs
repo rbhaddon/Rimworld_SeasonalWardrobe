@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SeasonalWardrobe
+namespace SmartStorage
 {
 	public enum AllowanceState
 	{

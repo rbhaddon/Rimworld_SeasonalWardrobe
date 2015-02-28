@@ -20,9 +20,9 @@ using RimWorld;            // RimWorld specific functions are found here (like '
 //using RimWorld.Planet;   // RimWorld specific functions for world creation
 //using RimWorld.SquadAI;  // RimWorld specific functions for squad brains 
 
-namespace SeasonalWardrobe
+namespace SmartStorage
 {
-	public class Building_SeasonalWardrobe : Building_Storage
+	public class Building_SeasonalWardrobe : Building_HeadAndTorsoStorage
 	{
 		// Lists of apparel to wear during cold seasons
 		private static List<ThingDef> coldSeasonWraps = new List<ThingDef> ();
@@ -44,9 +44,6 @@ namespace SeasonalWardrobe
 		const int HEAD_INSULATION_LIMIT = -10;
 		const int TORSO_INSULATION_LIMIT = -30;
 
-		// Owner is of this wardrobe is colonist who will receive the wear apparel jobs
-		public Pawn owner = null;
-
 		// Wardrobe allowances are implemented as a finite state machine
 		private FSM_Process fsm_process;
 
@@ -54,20 +51,11 @@ namespace SeasonalWardrobe
 		private Season previousSeason = Season.Undefined;
 
 		// The two apparel Things we store in the wardrobe, one of each.
-		public Thing storedHat = null;
-		public Thing storedWrap = null;
+		public Thing storedHead = null;
+		public Thing storedTorso = null;
 
 		// JobDefs
 		private const String JobDef_wearClothes = "WearClothesInWardrobe";
-
-		// Textures
-		public static Texture2D assignOwnerIcon;
-		public static Texture2D assignRoomOwnerIcon;
-		public static Texture2D resetWardrobeIcon;
-
-		// Tick-related vars; used to fire ticker work once per 24 hr game period
-		public int dayTicks = 20000;
-		public int counter = 0;
 
 		// Testing helper because seasons last too long for good testing efficiency
 		public Func<bool> SeasonHasChanged;
@@ -94,17 +82,6 @@ namespace SeasonalWardrobe
 
 		static Building_SeasonalWardrobe ()
 		{
-			// Note: this type is marked as 'beforefieldinit'.
-
-			Building_SeasonalWardrobe.assignOwnerIcon = ContentFinder<Texture2D>.Get("UI/Commands/AssignOwner");
-			Building_SeasonalWardrobe.assignRoomOwnerIcon = ContentFinder<Texture2D>.Get ("UI/Commands/AssignRoomOwner");
-			Building_SeasonalWardrobe.resetWardrobeIcon = ContentFinder<Texture2D>.Get ("UI/Commands/ResetWardrobe");
-
-			// Add definition to our BodyPartsRecords so we can distinguish between parkas and tuques, for instance
-			Building_SeasonalWardrobe.torsoParts.groups.Add (BodyPartGroupDefOf.Torso);
-			Building_SeasonalWardrobe.headParts.groups.Add (BodyPartGroupDefOf.UpperHead);
-			Building_SeasonalWardrobe.headParts.groups.Add (BodyPartGroupDefOf.FullHead);
-
 			// Build list of allowed apparel defs
 			Building_SeasonalWardrobe.CreateApparelLists ();
 
@@ -120,18 +97,15 @@ namespace SeasonalWardrobe
 		public override void ExposeData ()
 		{
 			base.ExposeData ();
-			Scribe_References.LookReference<Pawn> (ref owner, "owner");
 			Scribe_Values.LookValue<bool> (ref _seasonIsCold, "_seasonIsCold");
-			Scribe_References.LookReference<Thing> (ref storedHat, "storedHat");
-			Scribe_References.LookReference<Thing> (ref storedWrap, "storedWrap");
+			Scribe_References.LookReference<Thing> (ref storedHead, "storedHat");
+			Scribe_References.LookReference<Thing> (ref storedTorso, "storedWrap");
 			Scribe_Values.LookValue<Season> (ref previousSeason, "previousSeason");
 		}
 
 
 		public override void SpawnSetup ()
 		{
-			base.SpawnSetup ();
-
 			// Set the SeasonHasChanged func to normal mode or testing
 			if (TESTING_MODE)
 			{
@@ -144,27 +118,7 @@ namespace SeasonalWardrobe
 			// Set the current season
 			SeasonHasChanged ();
 
-			// Start wardrobe's state machine
-			fsm_process = new FSM_Process ();
-
-			// Restore previous state if needed
-			if (HaveHat ())
-			{
-				fsm_process.MoveNext (Command.AddHat);
-			}
-			if (HaveWrap ())
-			{
-				fsm_process.MoveNext (Command.AddWrap);
-			}
-
-			// Assign this room's owner to the wardrobe
-			if (owner == null)
-			{
-				AssignRoomOwner ();
-			}
-
-			// Check current state and perform allowance adjustments
-			InspectStateMachine ();
+			base.SpawnSetup ();
 		}
 
 
@@ -172,9 +126,9 @@ namespace SeasonalWardrobe
 		{
 			base.DeSpawn ();
 			if (HaveHat ())
-				storedHat.SetForbidden (false);
+				storedHead.SetForbidden (false);
 			if (HaveWrap ())
-				storedWrap.SetForbidden (false);
+				storedTorso.SetForbidden (false);
 		}
 
 
@@ -207,14 +161,6 @@ namespace SeasonalWardrobe
 			stringBuilder.Append (base.GetInspectString ());
 
 			stringBuilder.AppendLine ();
-			stringBuilder.Append ("Owner".Translate () + ": ");
-			if (owner == null) {
-				stringBuilder.Append ("Nobody".Translate ());
-			}
-			else {
-				stringBuilder.Append (owner.LabelCap);
-			}
-			stringBuilder.AppendLine ();
 			if (SeasonIsCold)
 			{
 				stringBuilder.Append ("Requesting: Warm weather apparel");
@@ -222,16 +168,7 @@ namespace SeasonalWardrobe
 			{
 				stringBuilder.Append ("Requesting: Cold weather apparel");
 			}
-			if (HaveHat ())
-			{
-				stringBuilder.AppendLine ();
-				stringBuilder.Append ("Hat: " + storedHat.Label);
-			}
-			if (HaveWrap ())
-			{
-				stringBuilder.AppendLine ();
-				stringBuilder.Append ("Torso: " + storedWrap.Label);
-			}
+
 			return stringBuilder.ToString ();
 		}
 
@@ -239,34 +176,7 @@ namespace SeasonalWardrobe
 		public override IEnumerable<Gizmo> GetGizmos()
 		{
 			IList<Gizmo> gizmoList = new List<Gizmo> ();
-			int groupKeyBase = 12091967;
-
-			Command_Action assignOwnerButton = new Command_Action();
-			assignOwnerButton.icon = assignOwnerIcon;
-			assignOwnerButton.defaultDesc = "Assign owner to wardrobe.";
-			assignOwnerButton.defaultLabel = "Assign Owner";
-			assignOwnerButton.activateSound = SoundDef.Named("Click");
-			assignOwnerButton.action = new Action(PerformAssignWardrobeAction);
-			assignOwnerButton.groupKey = groupKeyBase + 1;
-			gizmoList.Add(assignOwnerButton);
-
-			Command_Action assignRoomOwnerButton = new Command_Action();
-			assignRoomOwnerButton.icon = assignRoomOwnerIcon;
-			assignRoomOwnerButton.defaultDesc = "Assign owner of room to wardrobe.";
-			assignRoomOwnerButton.defaultLabel = "Assign Owner of Room";
-			assignRoomOwnerButton.activateSound = SoundDef.Named("Click");
-			assignRoomOwnerButton.action = new Action(AssignRoomOwner);
-			assignRoomOwnerButton.groupKey = groupKeyBase + 2;
-			gizmoList.Add(assignRoomOwnerButton);
-
-			Command_Action resetButton = new Command_Action();
-			resetButton.icon = resetWardrobeIcon;
-			resetButton.defaultDesc = "Resets the wardrobe allowances in case of error.";
-			resetButton.defaultLabel = "Reset Wardrobe";
-			resetButton.activateSound = SoundDef.Named("Click");
-			resetButton.action = new Action(PerformResetWardrobeAction);
-			resetButton.groupKey = groupKeyBase + 3;
-			gizmoList.Add(resetButton);
+			const int groupKeyBase = 12091967;
 
 			if (TESTING_MODE)
 			{
@@ -299,48 +209,7 @@ namespace SeasonalWardrobe
 			}
 			return (resultGizmoList);
 		}
-
-
-		public override void Notify_ReceivedThing(Thing newItem)
-		{
-//			Log.Message (string.Format ("[{0}] Received in wardrobe: {1}", owner.Nickname, newItem.Label));
-
-			if (IsTorsoShell(newItem.def))
-			{
-				fsm_process.MoveNext (Command.AddWrap);
-				storedWrap = newItem;
-			} else if (IsOverHead(newItem.def))
-			{
-				fsm_process.MoveNext (Command.AddHat);
-				storedHat = newItem;
-			} else 
-			{
-				Log.Error (string.Format ("[{0}] Invalid item stored in wardrobe: {1}", owner.Nickname, newItem.Label));
-			}
-			newItem.SetForbidden (true);
-			InspectStateMachine ();
-		}
-
-
-		public override void Notify_LostThing(Thing newItem)
-		{
-//			Log.Message (string.Format ("[{0}] Removed from wardrobe: {1}", owner.Nickname, newItem.Label));
-
-			if (IsTorsoShell(newItem.def))
-			{
-				fsm_process.MoveNext (Command.RemoveWrap);
-				storedWrap = null;
-			} else if (IsOverHead(newItem.def))
-			{
-				fsm_process.MoveNext (Command.RemoveHat);
-				storedHat = null;
-			} else 
-			{
-				Log.Error (string.Format ("[{0}] Invalid item removed from wardrobe: {1}", owner.Nickname, newItem.Label));
-			}
-			InspectStateMachine ();
-		}
-
+			
 
 		// ===================== Ticker =====================
 
@@ -403,26 +272,6 @@ namespace SeasonalWardrobe
 			owner.playerController.TakeOrderedJob (jobWear);
 		}
 
-		/// <summary>
-		/// Assigns the room owner.
-		/// </summary>
-		void AssignRoomOwner()
-		{
-			Pawn newOwner = null;
-
-			// Assign the wardrobe
-			Room room = Position.GetRoomOrAdjacent();
-			if (room != null)
-			{
-				Pawn roomOwner = room.RoomOwner;
-				newOwner = roomOwner;  // roomOwner may be null, which is valid
-			} else
-			{
-				newOwner = null;
-			}
-			owner = newOwner;
-		}
-
 
 		/// <summary>
 		/// Checks if the current season has changed since the last check.
@@ -475,26 +324,7 @@ namespace SeasonalWardrobe
 			}
 			return false;
 		}
-
-
-		/// <summary>
-		/// Does the wardrobe hold a wrap (torso shell-layer apparel)?
-		/// </summary>
-		/// <returns><c>true</c>, if wrap was had, <c>false</c> otherwise.</returns>
-		bool HaveWrap()
-		{
-			return (storedWrap != null);
-		}
-
-
-		/// <summary>
-		/// Does the wardrobe hold a hat?
-		/// </summary>
-		/// <returns><c>true</c>, if hat was had, <c>false</c> otherwise.</returns>
-		bool HaveHat()
-		{
-			return (storedHat != null);
-		}
+			
 
 		/// <summary>
 		/// Shoulds the wear job be issued.
@@ -552,7 +382,7 @@ namespace SeasonalWardrobe
 		/// When the season is cold, we store warm clothes and vice-versa.
 		/// When a hat has been added, we disallow additional hats and vice-versa with wraps.
 		/// </summary>
-		void InspectStateMachine()
+		public override void InspectStateMachine()
 		{
 //			if (owner != null)
 //			{
@@ -604,36 +434,20 @@ namespace SeasonalWardrobe
 
 
 		/// <summary>
-		/// Changes the allowances.
-		/// </summary>
-		/// <param name="thingDefs">Thing defs.</param>
-		void ChangeAllowances(List<ThingDef> thingDefs)
-		{
-			// Update allowances
-			settings.allowances.DisallowAll ();
-			foreach (var td in thingDefs)
-			{
-//				Log.Message (String.Format ("[{0}] allowing in wardrobe: {1}", owner.Nickname, td.label));
-				settings.allowances.SetAllow (td, true);
-			}
-		}
-
-
-		/// <summary>
 		/// Conditionally unforbids stored apparel in the wardrobe 
 		/// </summary>
 		/// <param name="force">If set to <c>true</c> forces the unforbiding.</param>
-		public void UnforbidClothing(bool force=false)
+		public override void UnforbidClothing(bool force=false)
 		{
 			if (force)
 			{
 				if (HaveHat ())
 				{
-					storedHat.SetForbidden (false);
+					storedHead.SetForbidden (false);
 				}
 				if (HaveWrap ())
 				{
-					storedWrap.SetForbidden (false);
+					storedTorso.SetForbidden (false);
 				}
 				return;
 			}
@@ -651,17 +465,17 @@ namespace SeasonalWardrobe
 
 			if (HaveHat())
 			{
-				if (currentSeasonApparel.Contains (storedHat.def))
+				if (currentSeasonApparel.Contains (storedHead.def))
 				{
-					storedHat.SetForbidden (false);
+					storedHead.SetForbidden (false);
 					fsm_process.MoveNext (Command.AddHat);
 				}
 			}
 			if (HaveWrap())
 			{
-				if (currentSeasonApparel.Contains (storedWrap.def))
+				if (currentSeasonApparel.Contains (storedTorso.def))
 				{
-					storedWrap.SetForbidden (false);
+					storedTorso.SetForbidden (false);
 					fsm_process.MoveNext (Command.AddWrap);
 				}
 			}
@@ -715,64 +529,7 @@ namespace SeasonalWardrobe
 //			Log.Message (String.Format ("warmSeasonHats contains {0} ThingDefs", Building_SeasonalWardrobe.warmSeasonHats.Count));
 //			Log.Message (String.Format ("warmSeasonWraps contains {0} ThingDefs", Building_SeasonalWardrobe.warmSeasonWraps.Count));
 		}
-
-		/// <summary>
-		/// Determines if thingDef is an apparel that goes over the head
-		/// </summary>
-		/// <returns><c>true</c> if is over head the specified thingDef; otherwise, <c>false</c>.</returns>
-		/// <param name="thingDef">Thing def.</param>
-		public static bool IsOverHead(ThingDef thingDef)
-		{
-			if (!thingDef.IsApparel)
-			{
-				return false;
-			}
-			else
-			{
-				return thingDef.apparel.layers.Contains (ApparelLayer.Overhead) &&
-					thingDef.apparel.CoversBodyPart (Building_SeasonalWardrobe.headParts);
-			}
-		}
-
-		/// <summary>
-		/// Determines if thingDef is an apparel that covers the torso at the shell layer
-		/// </summary>
-		/// <returns><c>true</c> if is torso shell the specified thingDef; otherwise, <c>false</c>.</returns>
-		/// <param name="thingDef">Thing def.</param>
-		public static bool IsTorsoShell(ThingDef thingDef)
-		{
-			if (!thingDef.IsApparel)
-			{
-				return false;
-			}
-			else
-			{
-				return thingDef.apparel.layers.Contains (ApparelLayer.Shell) &&
-					thingDef.apparel.CoversBodyPart (Building_SeasonalWardrobe.torsoParts);
-			}
-		}
-
-		/// <summary>
-		/// Performs the assign wardrobe action when assignOwnerButton is clicked
-		/// </summary>
-		void PerformAssignWardrobeAction()
-		{
-//			Log.Message ("Assign Owner Wardrobe");
-			Find.LayerStack.Add (new Dialog_AssignWardrobeOwner (this));
-			return;
-		}
-
-
-		/// <summary>
-		/// Reset the wardrobe: unforbid any stored clothing, assign owner, restart the state machine
-		/// </summary>
-		void PerformResetWardrobeAction()
-		{
-			UnforbidClothing (true);
-			AssignRoomOwner ();
-			fsm_process = new FSM_Process ();
-		}
-
+			
 
 		/// <summary>
 		/// Spawns the cold season apparel.
@@ -800,35 +557,6 @@ namespace SeasonalWardrobe
 			Debug_SpawnApparel (thingDefs, stuffDef);
 		}
 
-		void Debug_SpawnApparel(List<ThingDef> thingDefs, ThingDef stuffDef)
-		{
-			List<IntVec3> cells = AllSlotCells ().ToList ();
-			var thingsToDestroy = new List<Thing> ();
 
-			fsm_process = new FSM_Process ();
-
-			for (int i = 0; i < 2; i++)
-			{
-				// Destroy any existing items first -- this is a hack: assumes there is only one item as positon
-				IEnumerable<Thing> oldThings = Find.ListerThings.AllThings.Where (t => t.Position == cells [i]);
-				foreach (Thing t in oldThings)
-				{
-					if (t != this)
-					{
-						thingsToDestroy.Add(t);
-					}
-				}
-
-				foreach (Thing t in thingsToDestroy)
-				{
-					t.Destroy ();
-				}
-
-				// Spawn the new thing
-				Thing newThing = ThingMaker.MakeThing (thingDefs [i], stuffDef);
-				GenSpawn.Spawn (newThing, cells [i]).stackCount = 1;
-				Notify_ReceivedThing (newThing);
-			}
-		}
 	} // class Building_Wardrobe
 }

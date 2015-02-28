@@ -8,19 +8,19 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace SeasonalWardrobe
+namespace SmartStorage
 {
 	// Broken assign owner dialog stuff here
-	public class Dialog_AssignWardrobeOwner : Layer
+	public class Dialog_AssignSmartStorageOwner : Layer
 	{
-		public Building_SeasonalWardrobe wardrobe;
+		public Building_HeadAndTorsoStorage storage;
 		public Vector2 scrollPosition;
 		//
 		// Constructors
 		//
-		public Dialog_AssignWardrobeOwner (Building_SeasonalWardrobe wardrobe)
+		public Dialog_AssignSmartStorageOwner (Building_HeadAndTorsoStorage storage)
 		{
-			this.wardrobe = wardrobe;
+			this.storage = storage;
 			SetCentered (620, 500);
 			category = LayerCategory.GameDialog;
 			closeOnEscapeKey = true;
@@ -48,7 +48,7 @@ namespace SeasonalWardrobe
 				if (Widgets.TextButton (rect, "WardrobeAssign".Translate ())) {
 					//current.ownership.UnclaimBed ();
 					//current.ownership.ClaimBed (this.wardrobe);
-					wardrobe.owner = current;
+					storage.owner = current;
 					Close (true);
 					return;
 				}
