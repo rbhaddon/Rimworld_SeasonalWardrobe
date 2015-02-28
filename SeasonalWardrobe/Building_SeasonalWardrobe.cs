@@ -50,10 +50,6 @@ namespace SmartStorage
 		// TODO
 		private Season previousSeason = Season.Undefined;
 
-		// The two apparel Things we store in the wardrobe, one of each.
-		public Thing storedHead = null;
-		public Thing storedTorso = null;
-
 		// JobDefs
 		private const String JobDef_wearClothes = "WearClothesInWardrobe";
 
@@ -236,7 +232,7 @@ namespace SmartStorage
 		/// When seasons change, items left in wardrobes from past season that were never worn need to be unforbidden.
 		/// </summary>
 		/// <param name="tickerAmount">Ticker amount.</param>
-		private void DoTickerWork (int tickerAmount)
+		public override void DoTickerWork (int tickerAmount)
 		{
 			counter += tickerAmount;
 
@@ -266,7 +262,7 @@ namespace SmartStorage
 		/// Determines if issue wear job the specified pawn article.
 		/// </summary>
 		/// <returns><c>true</c> if issue wear job the specified pawn article; otherwise, <c>false</c>.</returns>
-		void IssueWearJob()
+		public override void IssueWearJob()
 		{
 			var jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_wearClothes), this);
 			owner.playerController.TakeOrderedJob (jobWear);

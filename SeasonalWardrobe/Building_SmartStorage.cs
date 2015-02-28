@@ -254,18 +254,33 @@ namespace SmartStorage
 		public override void Tick()
 		{
 			base.Tick ();
+			DoTickerWork (1);
 		}
 
 		/// <summary>
 		/// This method is called on every 250 normal ticks when the XML ticker is set to 'Rare'.
 		/// </summary>
-		public override void TickRare()
+		public  override void TickRare()
 		{
 			//if (destroyedFlag) // Do nothing further, when destroyed (just a safety)
 			//	return;
 
 			base.TickRare();
+			DoTickerWork (250);
 		}
+
+
+		/// <summary>
+		/// Does the ticker work.  Must be implemented in derived class
+		/// </summary>
+		/// <param name="tickerAmount">Ticker amount.</param>
+		public abstract void DoTickerWork (int tickerAmount);
+
+
+		/// <summary>
+		/// Issues wear job for stored items in this SmartStorage.  Must be implemented in derived class.
+		/// </summary>
+		public abstract void IssueWearJob ();
 
 
 		/// <summary>
