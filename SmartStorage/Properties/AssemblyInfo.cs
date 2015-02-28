@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // Allgemeine Informationen über eine Assembly werden über die folgenden 
 // Attribute gesteuert. Ändern Sie diese Attributwerte, um die Informationen zu ändern,
 // die mit einer Assembly verknüpft sind.
-[assembly: AssemblyTitle("SeasonalWardrobe")]
+[assembly: AssemblyTitle("SmartStorage")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("SeasonalWardrobe")]
-[assembly: AssemblyCopyright("Copyright ©  2015 (Mutant, Fried)")]
+[assembly: AssemblyProduct("SmartStore")]
+[assembly: AssemblyCopyright("Copyright ©  2015 (Friedmutant)")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
