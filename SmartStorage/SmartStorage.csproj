@@ -7,8 +7,8 @@
     <ProjectGuid>{A36BEEB2-7379-475B-B537-827E34571962}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SeasonalWardrobe</RootNamespace>
-    <AssemblyName>SeasonalWardrobe</AssemblyName>
+    <RootNamespace>SmartStorage</RootNamespace>
+    <AssemblyName>SmartStorage</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
@@ -71,4 +71,18 @@ that adapts to season changes.</Description>
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup>
+    <Folder Include="SmartStorage\" />
+  </ItemGroup>
+  <ProjectExtensions>
+    <MonoDevelop>
+      <Properties>
+        <Policies>
+          <VersionControlPolicy inheritsSet="Mono">
+            <CommitMessageStyle FileSeparator=", " />
+          </VersionControlPolicy>
+        </Policies>
+      </Properties>
+    </MonoDevelop>
+  </ProjectExtensions>
 </Project>

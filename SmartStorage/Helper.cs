@@ -1,4 +1,7 @@
-﻿using System;
+﻿//
+// Common utility functions for SmartStorage
+//
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -76,7 +79,7 @@ namespace SmartStorage
 		public static void AddThingsToStorage(Building_SmartArmorRack rack, List<Thing> things)
 		{
 			List<IntVec3> cells = rack.AllSlotCellsList ();
-			for (int i = 0; i < Building_SmartArmorRack.NUM_SLOTS; i++)
+			for (int i = 0; i < Building_HeadAndTorsoStorage.NUM_SLOTS; i++)
 			{
 				Thing thing = things [i];
 				Log.Message (String.Format ("Adding {0} to {1}", thing, rack));

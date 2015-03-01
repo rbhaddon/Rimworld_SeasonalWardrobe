@@ -37,10 +37,10 @@ namespace SmartStorage
 		public Pawn owner = null;
 
 		// Wardrobe allowances are implemented as a finite state machine
-		private FSM_Process fsm_process;
+		public FSM_Process fsm_process;
 
 		// Number of storage slots in this building
-		public int NUM_SLOTS;
+		public static int NUM_SLOTS;
 
 		// The two apparel Things we store in the wardrobe, one of each.
 		public Thing storedHead = null;
@@ -56,7 +56,7 @@ namespace SmartStorage
 		public int counter = 0;
 
 		// Testing helper because seasons last too long for good testing efficiency
-		const bool TESTING_MODE = false;
+		public bool TESTING_MODE = true;
 
 		static Building_HeadAndTorsoStorage ()
 		{
@@ -69,6 +69,8 @@ namespace SmartStorage
 		{
 			base.ExposeData ();
 			Scribe_References.LookReference<Pawn> (ref owner, "owner");
+			Scribe_References.LookReference<Thing> (ref storedHead, "storedHead");
+			Scribe_References.LookReference<Thing> (ref storedTorso, "storedTorso");
 		}
 
 		public override void SpawnSetup ()
@@ -81,11 +83,11 @@ namespace SmartStorage
 			fsm_process = new FSM_Process ();
 
 			// Restore previous state if needed
-			if (HaveHat ())
+			if (HaveHeadThing ())
 			{
 				fsm_process.MoveNext (Command.AddHat);
 			}
-			if (HaveWrap ())
+			if (HaveTorsoThing ())
 			{
 				fsm_process.MoveNext (Command.AddWrap);
 			}
@@ -104,9 +106,9 @@ namespace SmartStorage
 		public override void DeSpawn ()
 		{
 			base.DeSpawn ();
-			if (HaveHat ())
+			if (HaveHeadThing ())
 				storedHead.SetForbidden (false);
-			if (HaveWrap ())
+			if (HaveTorsoThing ())
 				storedTorso.SetForbidden (false);
 		}
 
@@ -115,7 +117,7 @@ namespace SmartStorage
 		{
 			if (Find.CameraMap.CurrentZoom == CameraZoomRange.Closest)
 			{
-				if (HaveHat () || HaveWrap ())
+				if (HaveHeadThing () || HaveTorsoThing ())
 				{
 					return;
 				}
@@ -147,12 +149,12 @@ namespace SmartStorage
 			else {
 				stringBuilder.Append (owner.LabelCap);
 			}
-			if (HaveHat ())
+			if (HaveHeadThing ())
 			{
 				stringBuilder.AppendLine ();
 				stringBuilder.Append ("Head: " + storedHead.Label);
 			}
-			if (HaveWrap ())
+			if (HaveTorsoThing ())
 			{
 				stringBuilder.AppendLine ();
 				stringBuilder.Append ("Torso: " + storedTorso.Label);
@@ -171,7 +173,7 @@ namespace SmartStorage
 			assignOwnerButton.defaultDesc = "Assign owner to this SmartStorage.";
 			assignOwnerButton.defaultLabel = "Assign Owner";
 			assignOwnerButton.activateSound = SoundDef.Named("Click");
-			assignOwnerButton.action = new Action(PerformAssignWardrobeAction);
+			assignOwnerButton.action = new Action(PerformAssignSmartStorageAction);
 			assignOwnerButton.groupKey = groupKeyBase + 1;
 			gizmoList.Add(assignOwnerButton);
 
@@ -288,7 +290,7 @@ namespace SmartStorage
 		/// </summary>
 		public void AssignRoomOwner()
 		{
-			Pawn newOwner = null;
+			Pawn newOwner;
 
 			// Assign the wardrobe
 			Room room = Position.GetRoomOrAdjacent();
@@ -308,7 +310,7 @@ namespace SmartStorage
 		/// Does the wardrobe hold a wrap (torso shell-layer apparel)?
 		/// </summary>
 		/// <returns><c>true</c>, if wrap was had, <c>false</c> otherwise.</returns>
-		public bool HaveWrap()
+		public bool HaveTorsoThing()
 		{
 			return (storedTorso != null);
 		}
@@ -318,7 +320,7 @@ namespace SmartStorage
 		/// Does the wardrobe hold a hat?
 		/// </summary>
 		/// <returns><c>true</c>, if hat was had, <c>false</c> otherwise.</returns>
-		public bool HaveHat()
+		public bool HaveHeadThing()
 		{
 			return (storedHead != null);
 		}
@@ -351,10 +353,6 @@ namespace SmartStorage
 			case AllowanceState.AllowNone:
 				ChangeAllowances(allowedDefList);
 				break;
-			default:
-				// The state machine is in an invalid state.
-				// We should get here because the FSM will throw an exception first
-				break;
 			}
 		}
 
@@ -373,7 +371,7 @@ namespace SmartStorage
 				settings.allowances.SetAllow (td, true);
 			}
 		}
-
+			
 
 		/// <summary>
 		/// Conditionally unforbids stored apparel in the wardrobe 
@@ -383,11 +381,11 @@ namespace SmartStorage
 		{
 			if (force)
 			{
-				if (HaveHat ())
+				if (HaveHeadThing ())
 				{
 					storedHead.SetForbidden (false);
 				}
-				if (HaveWrap ())
+				if (HaveTorsoThing ())
 				{
 					storedTorso.SetForbidden (false);
 				}
@@ -414,6 +412,7 @@ namespace SmartStorage
 			}
 		}
 
+
 		/// <summary>
 		/// Determines if thingDef is an apparel that covers the torso at the shell layer
 		/// </summary>
@@ -435,7 +434,7 @@ namespace SmartStorage
 		/// <summary>
 		/// Performs the assign wardrobe action when assignOwnerButton is clicked
 		/// </summary>
-		public void PerformAssignWardrobeAction()
+		public void PerformAssignSmartStorageAction()
 		{
 //			Log.Message ("Assign Owner Wardrobe");
 			Find.LayerStack.Add (new Dialog_AssignSmartStorageOwner (this));
@@ -454,33 +453,55 @@ namespace SmartStorage
 		}
 			
 
-		public void Debug_SpawnApparel(List<ThingDef> thingDefs, ThingDef stuffDef)
+		/// <summary>
+		/// Debugs the destroy stored things.
+		/// </summary>
+		public void Debug_DestroyStoredThings()
 		{
-			List<IntVec3> cells = AllSlotCellsList();
 			var thingsToDestroy = new List<Thing> ();
 
-			fsm_process = new FSM_Process ();
-
-			for (int i = 0; i < NUM_SLOTS; i++)
+			foreach (IntVec3 cell in AllSlotCellsList())
 			{
-				// Save existing items to a list for later destroying
-				IEnumerable<Thing> oldThings = Find.ListerThings.AllThings.Where (t => t.Position == cells [i]);
+				IEnumerable<Thing> oldThings = Find.ListerThings.AllThings.Where (t => t.Position == cell);
 				foreach (Thing t in oldThings)
 				{
 					if (t != this)
 					{
-						thingsToDestroy.Add(t);
+						thingsToDestroy.Add (t);
 					}
 				}
-				// Spawn the new thing
-				Thing newThing = ThingMaker.MakeThing (thingDefs [i], stuffDef);
-				GenSpawn.Spawn (newThing, cells [i]).stackCount = 1;
-				Notify_ReceivedThing (newThing);
 			}
-			// Destroy the old stuff, if any
+
 			foreach (Thing t in thingsToDestroy)
 			{
+				Log.Warning (String.Format ("Destroying {0}", t));
+				Notify_LostThing (t);
 				t.Destroy ();
+			}
+		}
+
+
+		/// <summary>
+		/// Debugs the spawn stored things.
+		/// </summary>
+		/// <param name="thingDefs">Thing defs.</param>
+		/// <param name="stuffDef">Stuff def.</param>
+		public void Debug_SpawnStoredThings(List<ThingDef> thingDefs, ThingDef stuffDef)
+		{
+			List<IntVec3> cells = AllSlotCellsList ();
+			fsm_process = new FSM_Process ();
+
+			for (int i = 0; i < NUM_SLOTS; i++)
+			{
+				// Spawn the new thing
+				Thing newThing;
+				if (stuffDef == null)
+					newThing = ThingMaker.MakeThing (thingDefs [i]);
+				else
+					newThing = ThingMaker.MakeThing (thingDefs [i], stuffDef);
+
+				GenSpawn.Spawn (newThing, cells [i]).stackCount = 1;
+				Notify_ReceivedThing (newThing);
 			}
 		}
 	} // class Building_HeadAndToroStorage

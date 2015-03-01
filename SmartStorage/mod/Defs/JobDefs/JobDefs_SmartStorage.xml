@@ -5,9 +5,14 @@
 
   <JobDef>
     <defName>WearClothesInWardrobe</defName>
-    <driverClass>SeasonalWardrobe.JobDriver_WearClothes</driverClass>
+    <driverClass>SmartStorage.JobDriver_WearClothes</driverClass>
     <reportString>Changing clothes.</reportString>
   </JobDef>
 
+  <JobDef>
+    <defName>WearArmorInRack</defName>
+    <driverClass>SmartStorage.JobDriver_WearArmor</driverClass>
+    <reportString>Equiping armor.</reportString>
+  </JobDef>
 
 </JobDefs>

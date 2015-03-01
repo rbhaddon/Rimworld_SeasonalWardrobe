@@ -1,10 +1,7 @@
-﻿// Seasonal Wardrobe mod for RimWorld
+﻿// SmartStorage mod for RimWorld
 // 
-// In Building_SeasonalWardrobe.SpawnSetup(), set func SeasonHasChanged() to either normal or test
-// Test mode fakes seasons changes every 24 game hours
-// Normal mode detects actual season changes from Summer --> Fall and Winter --> Spring.
+// SeasonalWardrobe -- Colonists change in and out of cold/warm weather gear automatically
 // 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,9 +41,6 @@ namespace SmartStorage
 		const int HEAD_INSULATION_LIMIT = -10;
 		const int TORSO_INSULATION_LIMIT = -30;
 
-		// Wardrobe allowances are implemented as a finite state machine
-		private FSM_Process fsm_process;
-
 		// TODO
 		private Season previousSeason = Season.Undefined;
 
@@ -55,7 +49,6 @@ namespace SmartStorage
 
 		// Testing helper because seasons last too long for good testing efficiency
 		public Func<bool> SeasonHasChanged;
-		bool TESTING_MODE = false;
 
 		// Indicates if current season is cold.  Used to determine correct storage allowances and wear jobs.
 		bool _seasonIsCold;
@@ -94,8 +87,6 @@ namespace SmartStorage
 		{
 			base.ExposeData ();
 			Scribe_Values.LookValue<bool> (ref _seasonIsCold, "_seasonIsCold");
-			Scribe_References.LookReference<Thing> (ref storedHead, "storedHat");
-			Scribe_References.LookReference<Thing> (ref storedTorso, "storedWrap");
 			Scribe_Values.LookValue<Season> (ref previousSeason, "previousSeason");
 		}
 
@@ -115,39 +106,6 @@ namespace SmartStorage
 			SeasonHasChanged ();
 
 			base.SpawnSetup ();
-		}
-
-
-		public override void DeSpawn ()
-		{
-			base.DeSpawn ();
-			if (HaveHat ())
-				storedHead.SetForbidden (false);
-			if (HaveWrap ())
-				storedTorso.SetForbidden (false);
-		}
-
-
-		public override void DrawGUIOverlay ()
-		{
-			if (Find.CameraMap.CurrentZoom == CameraZoomRange.Closest)
-			{
-				if (HaveHat () || HaveWrap ())
-				{
-					return;
-				}
-
-				string text;
-				if (owner != null)
-				{
-					text = owner.Nickname;
-				}
-				else
-				{
-					text = "Unowned".Translate ();
-				}
-				GenWorldUI.DrawThingLabel (this, text, new Color (1, 1, 1, 1));
-			}
 		}
 
 
@@ -207,23 +165,6 @@ namespace SmartStorage
 		}
 			
 
-		// ===================== Ticker =====================
-
-		/// <summary>
-		/// This is used, when the Ticker in the XML is set to 'Rare'
-		/// This is a tick thats done once every 250 normal Ticks
-		/// </summary>
-		public override void TickRare()
-		{
-			//if (destroyedFlag) // Do nothing further, when destroyed (just a safety)
-			//	return;
-
-			base.TickRare();
-
-			// Call work function
-			DoTickerWork(250);
-		}
-
 		/// <summary>
 		/// Dos the ticker work.
 		/// Remove the AllSlotCells iteration.  Instead, use HaveHat() and HaveWrap() to directly wear items
@@ -245,7 +186,7 @@ namespace SmartStorage
 //					Log.Warning ("Seasons changed; it is now cold: " + SeasonIsCold);
 					InspectStateMachine ();
 
-					if (HaveWrap () || HaveHat ())
+					if (HaveTorsoThing () || HaveHeadThing ())
 					{	
 						if (owner != null)
 						{
@@ -437,11 +378,11 @@ namespace SmartStorage
 		{
 			if (force)
 			{
-				if (HaveHat ())
+				if (HaveHeadThing ())
 				{
 					storedHead.SetForbidden (false);
 				}
-				if (HaveWrap ())
+				if (HaveTorsoThing ())
 				{
 					storedTorso.SetForbidden (false);
 				}
@@ -459,7 +400,7 @@ namespace SmartStorage
 				currentSeasonApparel = Building_SeasonalWardrobe.warmSeasonAll;
 			}
 
-			if (HaveHat())
+			if (HaveHeadThing())
 			{
 				if (currentSeasonApparel.Contains (storedHead.def))
 				{
@@ -467,7 +408,7 @@ namespace SmartStorage
 					fsm_process.MoveNext (Command.AddHat);
 				}
 			}
-			if (HaveWrap())
+			if (HaveTorsoThing())
 			{
 				if (currentSeasonApparel.Contains (storedTorso.def))
 				{
@@ -537,7 +478,8 @@ namespace SmartStorage
 			thingDefs.Add(ThingDef.Named("Apparel_Tuque"));
 			ThingDef stuffDef = ThingDef.Named("DevilstrandCloth");
 
-			Debug_SpawnApparel (thingDefs, stuffDef);
+			Debug_DestroyStoredThings ();
+			Debug_SpawnStoredThings (thingDefs, stuffDef);
 		}
 
 		/// <summary>
@@ -550,9 +492,10 @@ namespace SmartStorage
 			thingDefs.Add(ThingDef.Named("Apparel_CowboyHat"));
 			ThingDef stuffDef = ThingDef.Named("Cloth");
 
-			Debug_SpawnApparel (thingDefs, stuffDef);
+			Debug_DestroyStoredThings ();
+			Debug_SpawnStoredThings (thingDefs, stuffDef);
 		}
 
 
-	} // class Building_Wardrobe
+	} // class Building_SeasonalWardrobe
 }

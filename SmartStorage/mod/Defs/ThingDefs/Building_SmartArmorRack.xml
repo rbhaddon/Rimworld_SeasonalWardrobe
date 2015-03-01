@@ -12,17 +12,17 @@
   </ThingDef>
 
   <ThingDef ParentName="BuildingBase">
-    <defName>SeasonalWardrobe</defName>
+    <defName>SmartArmorRack</defName>
     <eType>BuildingComplex</eType>
-    <label>Seasonal wardrobe</label>
-    <thingClass>SmartStorage.Building_SeasonalWardrobe</thingClass>
+    <label>Smart armor rack</label>
+    <thingClass>SmartStorage.Building_SmartArmorRack</thingClass>
     <graphicPath>Things/Building/Furniture/EquipmentRack</graphicPath>
     <graphicClass>Graphic_Single</graphicClass>
     <altitudeLayer>Waist</altitudeLayer>
     <passability>Impassable</passability>
     <castEdgeShadows>true</castEdgeShadows>
     <DrawGUIOverlay>True</DrawGUIOverlay>
-    <tickerType>Rare</tickerType>
+    <tickerType>Normal</tickerType>
     <stuffCategories>
       <li>Metallic</li>
       <li>Woody</li>
@@ -34,7 +34,7 @@
       <WorkToMake>700</WorkToMake>
       <Flammability>1.0</Flammability>
     </statBases>
-    <description>A convenient place to store your cold and warm weather gear.</description>
+    <description>Store armor here in case of emergency.</description>
     <size>(2,1)</size>
     <graphicOverdraw>true</graphicOverdraw>
     <killedLeavings>

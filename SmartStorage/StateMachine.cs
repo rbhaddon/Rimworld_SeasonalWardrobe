@@ -1,7 +1,6 @@
-﻿/// <summary>
-/// Nifty state machine copied from a StackExchange post on C# FSMs.
-/// </summary>
-
+﻿//
+// Nifty state machine copied from a StackExchange post on C# FSMs.
+//
 using System;
 using System.Collections.Generic;
 
