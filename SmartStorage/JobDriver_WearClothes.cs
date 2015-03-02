@@ -40,7 +40,7 @@ namespace SmartStorage
 
 			// Toil: Wear clothes -- but only if they are correct for the current season
 
-			// key can't be null; makes dictionary poor choice
+			// key can't be null; makes dictionary poor choicea
 //			Dictionary<Thing, Func<ThingDef, bool>> dictionary = new Dictionary<Thing, Func<ThingDef, bool>> ()
 //			{
 //				{storedHat, Building_SeasonalWardrobe.IsOverHead},
@@ -179,12 +179,6 @@ namespace SmartStorage
 
 			toil.defaultCompleteMode = ToilCompleteMode.Instant;
 
-			return toil;
-		}
-
-		private Toil Toils_HaulDroppedApparel()
-		{
-			Toil toil = new Toil ();
 			return toil;
 		}
 

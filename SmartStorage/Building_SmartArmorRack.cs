@@ -30,50 +30,82 @@ namespace SmartStorage
 		}
 	}
 
+	public enum DangerEdge
+	{
+		Rising,
+		Falling,
+		Flat
+	}
+
 	public class Building_SmartArmorRack : Building_HeadAndTorsoStorage
 	{
-		// Lists of apparel to wear during cold seasons
-		private static List<ThingDef> allowedTorsoDefs = new List<ThingDef> ();
-		private static List<ThingDef> allowedHeadDefs = new List<ThingDef> ();
-		private static List<ThingDef> allowedAllDefs = new List<ThingDef> ();
-
-		// These records enable us to split our allowances into the above lists
-		private static BodyPartRecord torsoParts = new BodyPartRecord ();
-		private static BodyPartRecord headParts = new BodyPartRecord();
-
-		private static List<Season> coldSeasons = new List<Season>();
+		static List<Season> coldSeasons = new List<Season>();
 
 		// These are used to determine if a ThingDef is suitable armor
-		private static ArmorStats TorsoStats = new ArmorStats (0.30, 0.60);
-		private static ArmorStats HeadStats = new ArmorStats(0.1, 0.24);
+		static ArmorStats TorsoStats = new ArmorStats (0.30, 0.60);
+		static ArmorStats HeadStats = new ArmorStats(0.1, 0.24);
 
 		// Danger Rates
-		public StoryDanger currentDangerRate = StoryDanger.None;
+//		public StoryDanger currentDangerRate = StoryDanger.None;
 		public StoryDanger previousDangerRate = StoryDanger.None;
 
+
 		// JobDefs
-		private const String JobDef_wearArmor = "WearArmorInRack";
+		const String JobDef_WearArmor = "WearArmorInRack";
+
+		public DangerEdge CurrentDangerState
+		{
+			get {
+				var currentDanger = Find.StoryWatcher.watcherDanger.DangerRating;
+				if (currentDanger != StoryDanger.None && previousDangerRate == StoryDanger.None)
+				{
+					previousDangerRate = currentDanger;
+					return DangerEdge.Rising;
+				} else if (currentDanger == StoryDanger.None && previousDangerRate != StoryDanger.None)
+				{
+					previousDangerRate = currentDanger;
+					return DangerEdge.Falling;
+				} else
+				{
+					return DangerEdge.Flat;
+				}
+			}
+		}
 
 
 		static Building_SmartArmorRack ()
 		{
-			// Add definition to our BodyPartsRecords so we can distinguish between parkas and tuques, for instance
-			Building_SmartArmorRack.torsoParts.groups.Add (BodyPartGroupDefOf.Torso);
-			Building_SmartArmorRack.headParts.groups.Add (BodyPartGroupDefOf.FullHead);
-			Building_SmartArmorRack.headParts.groups.Add (BodyPartGroupDefOf.UpperHead);
-
 			// Build list of allowed apparel defs
 			Building_SmartArmorRack.CreateApparelLists ();
 		}
 
-		public override void SpawnSetup()
+
+		public override void DrawGUIOverlay ()
 		{
-			base.SpawnSetup ();
+			if (Find.CameraMap.CurrentZoom == CameraZoomRange.Closest)
+			{
+				if (HaveHeadThing () || HaveTorsoThing ())
+				{
+					return;
+				}
+
+				string text;
+				if (owner != null)
+				{
+					text = owner.Nickname;
+				}
+				else
+				{
+					text = "Unowned".Translate ();
+				}
+				GenWorldUI.DrawThingLabel (this, text, new Color (1, 1, 1, 1));
+			}
 		}
+
 
 		public override string GetInspectString ()
 		{
-			StringBuilder stringBuilder = new StringBuilder ();
+			var stringBuilder = new StringBuilder ();
 			stringBuilder.Append (base.GetInspectString ());
 
 			if (TESTING_MODE)
@@ -81,7 +113,7 @@ namespace SmartStorage
 				stringBuilder.AppendLine ();
 				stringBuilder.Append ("CurrentState: " + fsm_process.CurrentState);
 				stringBuilder.AppendLine ();
-				stringBuilder.Append ("CurrentDanger: " + currentDangerRate);
+				stringBuilder.Append ("CurrentDanger: " + Find.StoryWatcher.watcherDanger.DangerRating);
 			}
 			return stringBuilder.ToString ();
 		}
@@ -89,39 +121,39 @@ namespace SmartStorage
 
 		public override IEnumerable<Gizmo> GetGizmos()
 		{
-			IList<Gizmo> gizmoList = new List<Gizmo> ();
-			int groupKeyBase = 12091967;
+			var gizmoList = new List<Gizmo> ();
+			const int groupKeyBase = 12091967;
 
 			if (TESTING_MODE)
 			{
-				Command_Action createArmorButton = new Command_Action ();
+				var createArmorButton = new Command_Action ();
 				createArmorButton.defaultDesc = "Spawn armor in rack.";
 				createArmorButton.defaultLabel = "Create Armor";
 				createArmorButton.activateSound = SoundDef.Named ("Click");
 				createArmorButton.action = new Action (Debug_SpawnArmor);
-				createArmorButton.groupKey = groupKeyBase + 4;
+				createArmorButton.groupKey = groupKeyBase + 1;
 				gizmoList.Add (createArmorButton);
 
-				Command_Action destroyArmorButton = new Command_Action ();
+				var destroyArmorButton = new Command_Action ();
 				destroyArmorButton.defaultDesc = "Destroy armor in rack.";
 				destroyArmorButton.defaultLabel = "Destroy Armor";
 				destroyArmorButton.activateSound = SoundDef.Named ("Click");
 				destroyArmorButton.action = new Action (Debug_DestroyStoredThings);
-				destroyArmorButton.groupKey = groupKeyBase + 5;
+				destroyArmorButton.groupKey = groupKeyBase + 2;
 				gizmoList.Add (destroyArmorButton);
 			}
 
-			IEnumerable<Gizmo> resultGizmoList;
-			IEnumerable<Gizmo> baseGizmoList = base.GetGizmos();
-			if (baseGizmoList != null)
+			IEnumerable<Gizmo> resultButtonList;
+			IEnumerable<Gizmo> basebuttonList = base.GetGizmos();
+			if (basebuttonList != null)
 			{
-				resultGizmoList = gizmoList.AsEnumerable<Gizmo>().Concat(baseGizmoList);
+				resultButtonList = gizmoList.AsEnumerable<Gizmo>().Concat(basebuttonList);
 			}
 			else
 			{
-				resultGizmoList = gizmoList.AsEnumerable<Gizmo>();
+				resultButtonList = gizmoList.AsEnumerable<Gizmo>();
 			}
-			return (resultGizmoList);
+			return (resultButtonList);
 		}
 			
 
@@ -142,22 +174,21 @@ namespace SmartStorage
 			{
 				counter = 0;
 
-				currentDangerRate = Find.StoryWatcher.watcherDanger.DangerRating;
-				if (currentDangerRate != previousDangerRate)
+				if (CurrentDangerState == DangerEdge.Rising)
 				{
-					previousDangerRate = currentDangerRate;
-					if (currentDangerRate != StoryDanger.None)
-					{
-						InspectStateMachine ();
-						if (HaveTorsoThing () || HaveHeadThing ())
-						{	
-							if (owner != null)
-							{
-								Log.Message (string.Format ("[{0}] Issuing wear job.", owner.Nickname));
-								IssueWearJob ();
-							}
+					InspectStateMachine (); // TODO what does this do for me?
+					if (HaveTorsoThing () || HaveHeadThing ())
+					{	
+						if (owner != null)
+						{
+							Log.Message (string.Format ("[{0}] Issuing wear job.", owner.Nickname));
+							IssueWearJob ();
 						}
 					}
+				} else if (CurrentDangerState == DangerEdge.Falling)
+				{
+					// Put armor away, even if there is nothing in the rack to wear instead
+					Log.Message (string.Format ("[{0}] Issuing put-away armor job.", owner));
 				}
 			}
 		}
@@ -169,7 +200,7 @@ namespace SmartStorage
 		/// <returns><c>true</c> if issue wear job the specified pawn article; otherwise, <c>false</c>.</returns>
 		public override void IssueWearJob()
 		{
-			var jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_wearArmor), this);
+			var jobWear = new Job (DefDatabase<JobDef>.GetNamed (JobDef_WearArmor), this);
 
 			owner.playerController.TakeOrderedJob (jobWear);
 		}
@@ -194,19 +225,19 @@ namespace SmartStorage
 					{
 						if (ArmorRating_Blunt >= HeadStats.blunt && ArmorRating_Sharp >= HeadStats.sharp)
 						{
-//							Log.Message (String.Format ("Adding {0} to armorHead list.", thingDef.label));
-							Building_SmartArmorRack.allowedHeadDefs.Add (thingDef);
+							Log.Message (String.Format ("Adding {0} to armorHead list.", thingDef.label));
+							Building_HeadAndTorsoStorage.allowedHeadDefs.Add (thingDef);
 						}
 					} else if (IsTorsoShell(thingDef))
 					{
 						if (ArmorRating_Blunt >= TorsoStats.blunt && ArmorRating_Sharp >= TorsoStats.sharp)
 						{
-//							Log.Message (String.Format ("Adding {0} to armorTorso list.", thingDef.label));
-							Building_SmartArmorRack.allowedTorsoDefs.Add (thingDef);
+							Log.Message (String.Format ("Adding {0} to armorTorso list.", thingDef.label));
+							Building_HeadAndTorsoStorage.allowedTorsoDefs.Add (thingDef);
 						}
 					}
-					Building_SmartArmorRack.allowedAllDefs.AddRange (Building_SmartArmorRack.allowedHeadDefs);
-					Building_SmartArmorRack.allowedAllDefs.AddRange (Building_SmartArmorRack.allowedTorsoDefs);
+					Building_HeadAndTorsoStorage.allowedAllDefs.AddRange (Building_HeadAndTorsoStorage.allowedHeadDefs);
+					Building_HeadAndTorsoStorage.allowedAllDefs.AddRange (Building_HeadAndTorsoStorage.allowedTorsoDefs);
 				}
 			}
 		}

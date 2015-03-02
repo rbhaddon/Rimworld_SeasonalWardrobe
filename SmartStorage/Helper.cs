@@ -72,19 +72,19 @@ namespace SmartStorage
 
 
 		/// <summary>
-		/// Magically teleports the first building.NUM_SLOTS things from things into storage
+		/// Magically teleports the first building.NUM_SLOTS items from things into storage
 		/// </summary>
-		/// <param name="rack">Rack.</param>
-		/// <param name="things">Things.</param>
-		public static void AddThingsToStorage(Building_SmartArmorRack rack, List<Thing> things)
+		/// <param name="storage">Storage building.</param>
+		/// <param name="things">Things to put into storage.</param>
+		public static void AddThingsToStorage(Building_HeadAndTorsoStorage storage, List<Thing> things)
 		{
-			List<IntVec3> cells = rack.AllSlotCellsList ();
-			for (int i = 0; i < Building_HeadAndTorsoStorage.NUM_SLOTS; i++)
+			List<IntVec3> cells = storage.AllSlotCellsList ();
+			for (int i = 0; i < storage.NUM_SLOTS; i++)
 			{
 				Thing thing = things [i];
-				Log.Message (String.Format ("Adding {0} to {1}", thing, rack));
+				Log.Message (String.Format ("Adding {0} to {1}", thing, storage));
 				thing.Position = cells[i];
-				rack.Notify_ReceivedThing (things[i]);
+				storage.Notify_ReceivedThing (things[i]);
 			}
 		}
 	}

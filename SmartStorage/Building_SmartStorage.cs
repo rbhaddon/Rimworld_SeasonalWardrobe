@@ -25,22 +25,19 @@ namespace SmartStorage
 	public abstract class Building_HeadAndTorsoStorage : Building_Storage
 	{
 		// These records enable us to split our allowances into the above lists
-		private static BodyPartRecord torsoParts = new BodyPartRecord ();
-		private static BodyPartRecord headParts = new BodyPartRecord();
+		public static BodyPartRecord torsoParts = new BodyPartRecord ();
+		public static BodyPartRecord headParts = new BodyPartRecord();
 
 		// Lists of allowed Head and Torso ThingDefs
-		private static List<ThingDef> allowedTorsoDefs = new List<ThingDef> ();
-		private static List<ThingDef> allowedHeadDefs = new List<ThingDef> ();
-		private static List<ThingDef> allowedAllDefs = new List<ThingDef> ();
+		public static List<ThingDef> allowedTorsoDefs = new List<ThingDef> ();
+		public static List<ThingDef> allowedHeadDefs = new List<ThingDef> ();
+		public static List<ThingDef> allowedAllDefs = new List<ThingDef> ();
 
 		// Owner is of this wardrobe is colonist who will receive the wear apparel jobs
 		public Pawn owner = null;
 
 		// Wardrobe allowances are implemented as a finite state machine
 		public FSM_Process fsm_process;
-
-		// Number of storage slots in this building
-		public static int NUM_SLOTS;
 
 		// The two apparel Things we store in the wardrobe, one of each.
 		public Thing storedHead = null;
@@ -58,13 +55,28 @@ namespace SmartStorage
 		// Testing helper because seasons last too long for good testing efficiency
 		public bool TESTING_MODE = true;
 
+		// Number of storage slots in this building
+		public int NUM_SLOTS
+		{
+			get {
+				return AllSlotCellsList ().Count();
+			}
+		}
+
+
 		static Building_HeadAndTorsoStorage ()
 		{
-			Building_HeadAndTorsoStorage.assignOwnerIcon = ContentFinder<Texture2D>.Get("UI/Commands/AssignOwner");
-			Building_HeadAndTorsoStorage.assignRoomOwnerIcon = ContentFinder<Texture2D>.Get ("UI/Commands/AssignRoomOwner");
-			Building_HeadAndTorsoStorage.resetSmartStorageIcon = ContentFinder<Texture2D>.Get ("UI/Commands/ResetWardrobe");
+			assignOwnerIcon = ContentFinder<Texture2D>.Get("UI/Commands/AssignOwner");
+			assignRoomOwnerIcon = ContentFinder<Texture2D>.Get ("UI/Commands/AssignRoomOwner");
+			resetSmartStorageIcon = ContentFinder<Texture2D>.Get ("UI/Commands/ResetWardrobe");
+
+			// Add definition to our BodyPartsRecords so we can distinguish between parkas and tuques, for instance
+			torsoParts.groups.Add (BodyPartGroupDefOf.Torso);
+			headParts.groups.Add (BodyPartGroupDefOf.FullHead);
+			headParts.groups.Add (BodyPartGroupDefOf.UpperHead);
 		}
-			
+
+
 		public override void ExposeData ()
 		{
 			base.ExposeData ();
@@ -73,11 +85,11 @@ namespace SmartStorage
 			Scribe_References.LookReference<Thing> (ref storedTorso, "storedTorso");
 		}
 
+
 		public override void SpawnSetup ()
 		{
+			Log.Warning ("In Building_SmartStorage.SpawnSetup()");
 			base.SpawnSetup ();
-
-			NUM_SLOTS = AllSlotCellsList ().Capacity;
 
 			// Start wardrobe's state machine
 			fsm_process = new FSM_Process ();
@@ -113,27 +125,27 @@ namespace SmartStorage
 		}
 
 
-		public override void DrawGUIOverlay ()
-		{
-			if (Find.CameraMap.CurrentZoom == CameraZoomRange.Closest)
-			{
-				if (HaveHeadThing () || HaveTorsoThing ())
-				{
-					return;
-				}
-
-				string text;
-				if (owner != null)
-				{
-					text = owner.Nickname;
-				}
-				else
-				{
-					text = "Unowned".Translate ();
-				}
-				GenWorldUI.DrawThingLabel (this, text, new Color (1, 1, 1, 1));
-			}
-		}
+//		public override void DrawGUIOverlay ()
+//		{
+//			if (Find.CameraMap.CurrentZoom == CameraZoomRange.Closest)
+//			{
+//				if (HaveHeadThing () || HaveTorsoThing ())
+//				{
+//					return;
+//				}
+//
+//				string text;
+//				if (owner != null)
+//				{
+//					text = owner.Nickname;
+//				}
+//				else
+//				{
+//					text = "Unowned".Translate ();
+//				}
+//				GenWorldUI.DrawThingLabel (this, text, new Color (1, 1, 1, 1));
+//			}
+//		}
 
 
 		public override string GetInspectString ()
@@ -174,7 +186,7 @@ namespace SmartStorage
 			assignOwnerButton.defaultLabel = "Assign Owner";
 			assignOwnerButton.activateSound = SoundDef.Named("Click");
 			assignOwnerButton.action = new Action(PerformAssignSmartStorageAction);
-			assignOwnerButton.groupKey = groupKeyBase + 1;
+			assignOwnerButton.groupKey = groupKeyBase + 3;
 			gizmoList.Add(assignOwnerButton);
 
 			Command_Action assignRoomOwnerButton = new Command_Action();
@@ -183,7 +195,7 @@ namespace SmartStorage
 			assignRoomOwnerButton.defaultLabel = "Assign Owner from Room";
 			assignRoomOwnerButton.activateSound = SoundDef.Named("Click");
 			assignRoomOwnerButton.action = new Action(AssignRoomOwner);
-			assignRoomOwnerButton.groupKey = groupKeyBase + 2;
+			assignRoomOwnerButton.groupKey = groupKeyBase + 4;
 			gizmoList.Add(assignRoomOwnerButton);
 
 			Command_Action resetButton = new Command_Action();
@@ -192,26 +204,26 @@ namespace SmartStorage
 			resetButton.defaultLabel = "Reset SmartStorage";
 			resetButton.activateSound = SoundDef.Named("Click");
 			resetButton.action = new Action(PerformResetSmartStorageAction);
-			resetButton.groupKey = groupKeyBase + 3;
+			resetButton.groupKey = groupKeyBase + 5;
 			gizmoList.Add(resetButton);
 
-			IEnumerable<Gizmo> resultGizmoList;
-			IEnumerable<Gizmo> baseGizmoList = base.GetGizmos();
-			if (baseGizmoList != null)
+			IEnumerable<Gizmo> resultButtonList;
+			IEnumerable<Gizmo> basebuttonList = base.GetGizmos();
+			if (basebuttonList != null)
 			{
-				resultGizmoList = gizmoList.AsEnumerable<Gizmo>().Concat(baseGizmoList);
+				resultButtonList = gizmoList.AsEnumerable<Gizmo>().Concat(basebuttonList);
 			}
 			else
 			{
-				resultGizmoList = gizmoList.AsEnumerable<Gizmo>();
+				resultButtonList = gizmoList.AsEnumerable<Gizmo>();
 			}
-			return (resultGizmoList);
+			return (resultButtonList);
 		}
 
 
 		public override void Notify_ReceivedThing(Thing newItem)
 		{
-			//Log.Message (string.Format ("[{0}] Received in SmartStorage: {1}", owner.Nickname, newItem.Label));
+//			Log.Message (string.Format ("[{0}] Received in SmartStorage: {1}", owner, newItem.Label));
 
 			if (IsTorsoShell(newItem.def))
 			{
@@ -223,7 +235,7 @@ namespace SmartStorage
 				storedHead = newItem;
 			} else 
 			{
-				Log.Error (string.Format ("[{0}] Invalid item stored in SmartStorage: {1}", owner.Nickname, newItem.Label));
+				Log.Error (string.Format ("[{0}] Invalid item stored in SmartStorage: {1}", owner, newItem.Label));
 			}
 			newItem.SetForbidden (true);
 			InspectStateMachine ();
@@ -232,7 +244,7 @@ namespace SmartStorage
 
 		public override void Notify_LostThing(Thing newItem)
 		{
-			//Log.Message (string.Format ("[{0}] Removed from SmartStorage: {1}", owner.Nickname, newItem.Label));
+//			Log.Message (string.Format ("[{0}] Removed from SmartStorage: {1}", owner, newItem.Label));
 
 			if (IsTorsoShell(newItem.def))
 			{
@@ -244,7 +256,7 @@ namespace SmartStorage
 				storedHead = null;
 			} else 
 			{
-				Log.Error (string.Format ("[{0}] Invalid item removed from SmartStorage: {1}", owner.Nickname, newItem.Label));
+				Log.Error (string.Format ("[{0}] Invalid item removed from SmartStorage: {1}", owner, newItem.Label));
 			}
 			InspectStateMachine ();
 		}
@@ -333,6 +345,8 @@ namespace SmartStorage
 		/// </summary>
 		public virtual void InspectStateMachine()
 		{
+			Log.Message (String.Format ("[{0}] Current base state: {1}", owner, fsm_process.CurrentState));
+
 			var allowedDefList = new List<ThingDef> ();
 
 			switch (fsm_process.CurrentState)
@@ -504,5 +518,7 @@ namespace SmartStorage
 				Notify_ReceivedThing (newThing);
 			}
 		}
+
+
 	} // class Building_HeadAndToroStorage
 }
